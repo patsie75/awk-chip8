@@ -11,14 +11,12 @@ BEGIN {
   chip["cfg"]["width"] = 64
   chip["cfg"]["height"] = 32
   chip["cfg"]["debug"] = 1
-  chip["cfg"]["step"] = 1
+  chip["cfg"]["step"] = 0
+  chip["cfg"]["sleep"] = 0.01
 
   # initialize chip-8 computer and load program
   chip8::init(chip)
-  chip8::load(chip, "prgs/maze.hex", 0x0200)
-  #chip8::load(chip, "prgs/chip8pic.hex", 0x0200)
-  #chip8::load(chip, "prgs/ibmlogo.hex", 0x0200)
-  #chip8::load(chip, "prgs/chip8emu.hex", 0x0200)
+  chip8::load(chip, "prgs/multimg.hex", 0x0200)
   #chip8::load(chip, ARGV[1], 0x0200)
 
   # display first output
@@ -43,6 +41,9 @@ BEGIN {
     # wait for enter key to step to the next cycle
     if (chip["cfg"]["step"])
       getline
+
+    if (chip["cfg"]["sleep"])
+      system(sprintf("sleep %.3f", chip["cfg"]["sleep"]))
   }
 }
 

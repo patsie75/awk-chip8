@@ -1,9 +1,10 @@
 @namespace "cpu"
 
 BEGIN {
+  mnem["0000"]       = "NOP"
   mnem["00E0"]       = "CLS"
   mnem["00EE"]       = "RET"
-  mnem["0(.[^E].)"]  = "SYS  0x%s"
+  mnem["0([^0][^0E][^0])"] = "SYS  0x%s"
   mnem["1(...)"]     = "JP   0x%s"
   mnem["2(...)"]     = "CALL 0x%s"
   mnem["3(.)(..)"]   = "SE   V%s,0x%s"
@@ -65,6 +66,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     n = self["cfg"]["width"] * self["cfg"]["height"]
     for (i=0; i<=n; i++)
       self["disp"][i] = 0x00
+    self["disp"]["refresh"] = 1
     return self["pc"] += 2
   }
 
