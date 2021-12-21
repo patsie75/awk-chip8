@@ -1,4 +1,4 @@
-#!/usr/bin/gawk -f
+#!/usr/bin/gawk -bf
 
 @include "lib/chip8.gawk"
 
@@ -17,6 +17,7 @@ BEGIN {
   # initialize chip-8 computer and load program
   chip8::init(chip)
   chip8::load(chip, "prgs/multimg.hex", 0x0200)
+  #chip8::load(chip, "prgs/maze.ch8", 0x0200)
   #chip8::load(chip, ARGV[1], 0x0200)
 
   # display first output

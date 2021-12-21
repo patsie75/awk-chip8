@@ -21,7 +21,12 @@ BEGIN {
              F0 80 F0 80 F0 \
              F0 80 F0 80 80"
   split(fontstr, sysfont)
+
+  # set ord table
+  for (i=0; i<256; i++)
+    ORD[sprintf("%c",i)] = i;
 }
+
 
 function dump(self, val, xpos, ypos,    i, y) {
   switch(val) {
@@ -45,59 +50,50 @@ function dump(self, val, xpos, ypos,    i, y) {
   }
 }
 
+
 function init(self) {
-  # 16 all purpose registers
-  for (i=0; i<16; i++)
-    self["V"][i] = 0x00
-
-  # Index register, program counter, current opcode
-  self["I"]      = 0x0000
+  # program counter
   self["pc"]     = 0x0200
-  self["opcode"] = 0x0000
-
-  # initialize memory
-  size = self["cfg"]["memsize"]
-  for (i=0; i<size; i++)
-    self["mem"][i] = 0x00
 
   # put system font in memory
   for (i=0; i<0x50; i++)
     self["mem"][i] = awk::strtonum("0x" sysfont[i+1])
 
   # display data
-  size = self["cfg"]["height"] * self["cfg"]["width"]
-  for (i=0; i<size; i++)
-    self["disp"][i] = 0x00
-    #self["disp"][i] = int(rand() * 2)
   self["disp"]["refresh"] = 1
-
-  # stack and stack pointer
-  for (i=0; i<16; i++)
-    self["stack"][i] = 0x0000
-  self["sp"] = 0x0000
-
-  # delay and sound timers
-  self["timer"]["delay"] = self["timer"]["sound"] = 0x00
-
-  # keyboard
-  for (i=0; i<16; i++)
-    self["key"][i] = 0x00
 }
 
-function load(self, fname, addr) {
-  addr = length(addr) ? addr : 0x0200
 
-  _fs = FS; FS = ","
-  while ((getline <fname) > 0) {
-    self["mem"][addr++] = awk::strtonum("0x"substr($0,1,2)) % 256
-    self["mem"][addr++] = awk::strtonum("0x"substr($0,3,2)) % 256
+function load(self, fname, addr,    ext, _fs, x) {
+  addr = length(addr) ? addr : 0x0200
+  ext = substr(fname, length(fname)-3)
+
+  # load ascii based hex file. big-endian word per line
+  if (ext == ".hex") {
+    _fs = FS; FS = ","
+    while ((getline <fname) > 0) {
+      self["mem"][addr++] = awk::strtonum("0x"substr($0,1,2)) % 256
+      self["mem"][addr++] = awk::strtonum("0x"substr($0,3,2)) % 256
+    }
   }
+
+  # load binary ch8 file
+  if (ext == ".ch8") {
+    _fs = FS; FS = ""
+    while ((getline <fname) > 0) {
+      for (x=1; x<=NF; x++)
+        self["mem"][addr++] = ORD[$x]
+      if (RT)
+        self["mem"][addr++] = ORD[RT]
+    }
+  }
+
   close(fname)
   FS = _fs
 }
 
 
-function draw(self, xpos, ypos,    x,y, w,h) {
+function draw(self, xpos, ypos,    x,y, w,h, up,dn, line) {
   if (self["disp"]["refresh"] == 1) {
     w = self["cfg"]["width"]
     h = self["cfg"]["height"]
