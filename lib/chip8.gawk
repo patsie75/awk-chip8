@@ -1,6 +1,6 @@
 @namespace "chip8"
 
-@include "lib/opcode.gawk"
+@include "lib/cpu.gawk"
 
 BEGIN {
   # bytes for characters 0-9 and A-F
@@ -27,19 +27,21 @@ function dump(self, val, xpos, ypos,    i, y) {
   switch(val) {
     case /^mem|all/:
       for (i=self["pc"]-2; i<self["pc"]+30; i+=2) {
-        opcode = self["mem"][i] * 256 + self["mem"][i]
-        printf("\033[%d;%dH%c %04X: %02X %02X [%-14s] %c\n", ypos+y++, xpos, (i==self["pc"]) ? ">" : " ", i, self["mem"][i], self["mem"][i+1], opcode::disasm(opcode), (i==self["pc"]) ? "<" : " " )
+        opcode = self["mem"][i] * 256 + self["mem"][i+1]
+        printf("\033[%d;%dH%s%04X: %02X %02X [%-14s]%c\033[0m\n", ypos+y++, xpos, (i==self["pc"]) ? "\033[97;101m>" : " ", i, self["mem"][i], self["mem"][i+1], cpu::disasm(opcode), (i==self["pc"]) ? "<" : " " )
       }
 
     case /^reg|all/:
-      printf("\033[%d;%dHPC: 0x%04X, val: 0x%02X\n", ypos+0, xpos+36, self["pc"], self["mem"][ self["pc"] ])
-      printf("\033[%d;%dH I: 0x%04X, val: 0x%02X\n", ypos+1, xpos+36, self["I"],  self["mem"][ self["I"] ])
-      printf("\033[%d;%dHSP: 0x%04X, val: 0x%02X\n", ypos+2, xpos+36, self["sp"], self["stack"][ self["sp"] ])
+      printf("\033[%d;%dHPC: 0x%04X, val: 0x%02X\n", ypos+0, xpos+31, self["pc"], self["mem"][ self["pc"] ])
+      printf("\033[%d;%dH I: 0x%04X, val: 0x%02X\n", ypos+1, xpos+31, self["I"],  self["mem"][ self["I"] ])
+      printf("\033[%d;%dHSP: 0x%04X, val: 0x%02X\n", ypos+2, xpos+31, self["sp"], self["stack"][ self["sp"] ])
 
-      printf("\033[%d;%dHV0x0-0x3: %02X %02X %02X %02X\n", ypos+4, xpos+36, self["V"][0x0], self["V"][0x1], self["V"][0x2], self["V"][0x3])
-      printf("\033[%d;%dHV0x4-0x7: %02X %02X %02X %02X\n", ypos+5, xpos+36, self["V"][0x4], self["V"][0x5], self["V"][0x6], self["V"][0x7])
-      printf("\033[%d;%dHV0x8-0xB: %02X %02X %02X %02X\n", ypos+6, xpos+36, self["V"][0x8], self["V"][0x9], self["V"][0xA], self["V"][0xB])
-      printf("\033[%d;%dHV0xC-0xF: %02X %02X %02X %02X\n", ypos+7, xpos+36, self["V"][0xC], self["V"][0xD], self["V"][0xE], self["V"][0xF])
+      printf("\033[%d;%dHV0x0-0x3: %02X %02X %02X %02X\n", ypos+4, xpos+31, self["V"][0x0], self["V"][0x1], self["V"][0x2], self["V"][0x3])
+      printf("\033[%d;%dHV0x4-0x7: %02X %02X %02X %02X\n", ypos+5, xpos+31, self["V"][0x4], self["V"][0x5], self["V"][0x6], self["V"][0x7])
+      printf("\033[%d;%dHV0x8-0xB: %02X %02X %02X %02X\n", ypos+6, xpos+31, self["V"][0x8], self["V"][0x9], self["V"][0xA], self["V"][0xB])
+      printf("\033[%d;%dHV0xC-0xF: %02X %02X %02X %02X\n", ypos+7, xpos+31, self["V"][0xC], self["V"][0xD], self["V"][0xE], self["V"][0xF])
+
+      printf("\033[%d;%dHdelay: %02X, sound %02X\n", ypos+9, xpos+31, self["timer"]["delay"], self["timer"]["sound"])
   }
 }
 
@@ -94,6 +96,7 @@ function load(self, fname, addr) {
   FS = _fs
 }
 
+
 function draw(self, xpos, ypos,    x,y, w,h) {
   if (self["disp"]["refresh"] == 1) {
     w = self["cfg"]["width"]
@@ -112,9 +115,19 @@ function draw(self, xpos, ypos,    x,y, w,h) {
   }
 }
 
+
+function update_timers(self) {
+  if (self["timer"]["delay"] > 0)
+    self["timer"]["delay"]--
+
+  if (self["timer"]["sound"] > 0)
+    self["timer"]["sound"]--
+}
+
+
 function cycle(self) {
-  opcode::fetch(self)
-  opcode::execute(self)
-  #update_timers()
+  cpu::fetch(self)
+  cpu::execute(self)
+  update_timers(self)
 }
 

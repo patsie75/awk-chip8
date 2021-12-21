@@ -1,4 +1,4 @@
-@namespace "opcode"
+@namespace "cpu"
 
 BEGIN {
   mnem["00E0"]       = "CLS"
@@ -8,7 +8,7 @@ BEGIN {
   mnem["2(...)"]     = "CALL 0x%s"
   mnem["3(.)(..)"]   = "SE   V%s,0x%s"
   mnem["4(.)(..)"]   = "SNE  V%s,0x%s"
-  mnem["5(.)(.)0"]   = "SE   V%s,v%s"
+  mnem["5(.)(.)0"]   = "SE   V%s,V%s"
   mnem["6(.)(..)"]   = "LD   V%s,0x%s"
   mnem["7(.)(..)"]   = "INC  V%s,0x%s"
   mnem["8(.)(.)0"]   = "LD   V%s,V%s"
@@ -47,7 +47,7 @@ function disasm(opcode,    hex, op, argv) {
       # there are at most 3 arguments for an opcode
       return sprintf(mnem[op], argv[1], argv[2], argv[3])
 
-  return "<UNKNOWN OPCODE>"
+  return "<UNKNOWN>"
 }
 
 
@@ -60,7 +60,7 @@ function fetch(self,    pc) {
 function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   opcode = self["opcode"]
 
-  # clear screen (CLS)
+  # CLS (Clear Screen)
   if ( 0x00E0 == opcode ) {
     n = self["cfg"]["width"] * self["cfg"]["height"]
     for (i=0; i<=n; i++)
@@ -68,26 +68,26 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # return from subroutine (RET)
+  # RET (Return from subroutine)
   if ( 0x00EE == opcode ) {
-    return self["pc"] = self["stack"][self["sp"]--]
+    return self["pc"] = self["stack"][self["sp"]--] + 2
   }
 
-  # jump (JP nnn)
+  # JP addr (Jump to address)
   if ( 0x1000 == awk::and(opcode, 0xF000) ) {
     if (self["pc"] == awk::and(opcode, 0x0FFF)) exit 0
     self["pc"] = awk::and(opcode, 0x0FFF)
     return self["pc"]
   }
 
-  # call subroutine (CALL nnn)
+  # CALL addr (jump to subroutine at address)
   if ( 0x2000 == awk::and(opcode, 0xF000) ) {
     self["stack"][++self["sp"]] = self["pc"]
     self["pc"] = awk::and(opcode, 0x0FFF)
     return self["pc"]
   }
 
-  # Vx == NN
+  # SE Vx (Vx == byte)
   if ( 0x3000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     if (self["V"][vx] == awk::and(opcode, 0x00FF))
@@ -95,7 +95,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx != NN
+  # SNE Vx (Vx != byte)
   if ( 0x4000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     if (self["V"][vx] != awk::and(opcode, 0x00FF))
@@ -103,7 +103,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx == Vy
+  # SE Vx,Vy (Vx == Vy)
   if ( 0x5000 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -112,21 +112,21 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx = NN
+  # LD Vx, byte (Vx := byte)
   if ( 0x6000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][vx] = awk::and(opcode, 0x00FF)
     return self["pc"] += 2
   }
 
-  # Vx += NN
+  # INC Vx, byte (Vx += byte)
   if ( 0x7000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][vx] += awk::and(opcode, 0x00FF)
     return self["pc"] += 2
   }
 
-  # Vx = Vy
+  # LD Vx, Vy (Vx := Vy)
   if ( 0x8000 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -134,7 +134,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx |= Vy
+  # OR Vx, Vy (Vx |= Vy)
   if ( 0x8001 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -142,7 +142,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx &= Vy
+  # AND Vx, Vy (Vx &= Vy)
   if ( 0x8002 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -150,7 +150,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx ^= Vy
+  # XOR Vx, Vy (Vx ^= Vy)
   if ( 0x8003 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -158,7 +158,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx += Vy
+  # INC Vx, Vy (Vx += Vy)
   if ( 0x8004 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -168,7 +168,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # Vx -= Vy
+  # DEC Vx, Vy (Vx -= Vy)
   if ( 0x8005 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -178,7 +178,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SHR Vx, 1
+  # SHR Vx, 1 (Vx >> 1)
   if ( 0x8006 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][0xF] = self["V"][vx] % 2
@@ -186,7 +186,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SUBN Vx, Vy
+  # SUBN Vx, Vy (Vx -= Vy)
   if ( 0x8007 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -197,7 +197,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SHL Vx, 1
+  # SHL Vx, 1 (Vx << 1)
   if ( 0x800E == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][0xF] = rshift(self["V"][vx], 7)
@@ -205,7 +205,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SNE Vx, Vy
+  # SNE Vx, Vy (Vx != Vy)
   if ( 0x9000 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -214,19 +214,19 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # LD, I, addr
+  # LD I, addr (I := addr)
   if ( 0xA000 == awk::and(opcode, 0xF000) ) {
     self["I"] = awk::and(opcode, 0x0FFF)
     return self["pc"] += 2
   }
 
-  # JP V0, addr
+  # JP V0, addr (jump to address V0 + addr)
   if ( 0xB000 == awk::and(opcode, 0xF000) ) {
     self["pc"] = self["V"][0] + awk::and(opcode, 0x0FFF)
     return self["pc"] += 2
   }
 
-  # RND Vx, byte
+  # RND Vx, byte (random number & byte)
   if ( 0xC000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = int(rand() * 255)
@@ -234,7 +234,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # DRAW V1, V2, N
+  # DRAW V1, V2, N (draw byte at [I] at Vx,Vy, N times high)
   if ( 0xD000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
@@ -257,7 +257,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SKP Vx
+  # SKP Vx (Check keypress with Vx)
   if ( 0xE09E == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     ## TODO check keymap/keypress
@@ -266,7 +266,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # SKNP Vx
+  # SKNP Vx (Check not-keypressed with Vx)
   if ( 0xE0A1 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     ## TODO check keymap/keypress
@@ -275,14 +275,14 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # LD Vx,DT 
+  # LD Vx,DT (Vx := delay timer)
   if ( 0xF007 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][vx] = self["timer"]["delay"]
     return self["pc"] += 2
   }
 
-  # LD Vx, K
+  # LD Vx, K (Vx := key press)
   if ( 0xF00A == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     # TODO check checkmap/keypress
@@ -290,35 +290,35 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # LD DT, Vx
+  # LD DT, Vx (Delay timer := Vx)
   if ( 0xF015 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["timer"]["delay"] = self["V"][vx]
     return self["pc"] += 2
   }
 
-  # LD ST, Vx
+  # LD ST, Vx (Sound timer := Vx)
   if ( 0xF018 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["timer"]["sound"] = self["V"][vx]
     return self["pc"] += 2
   }
 
-  # ADD I, Vx
+  # ADD I, Vx (I += Vx)
   if ( 0xF01E == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["I"] += self["V"][vx]
     return self["pc"] += 2
   }
 
-  # LD F, Vx
+  # LD F, Vx (I := sprite location at Vx)
   if ( 0xF029 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["I"] = awk::and(self["V"][vx], 0x0F) * 5
     return self["pc"] += 2
   }
 
-  # LD B, Vx
+  # LD B, Vx ([I] := BCD of Vx)
   if ( 0xF033 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = self["I"]
@@ -328,7 +328,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # LD [I], Vx
+  # LD [I], Vx (save V0-Vx starting at [I])
   if ( 0xF055 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = self["I"]
@@ -337,7 +337,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # LD Vx, [I]
+  # LD Vx, [I] (load V0-Vx from [I] onwards)
   if ( 0xF065 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = self["I"]
