@@ -1,23 +1,23 @@
-6000
-6e08
-630f
-A226
-00e0
-6200
-6110
-d12f
-F31E
-7108
-3130
-120e
-8234
-321e
-120c
-7001
-50e0
-1208
-1224
-0000
+6000	; [0x200] LD   V0,0x00	; image counter
+6e08	; [0x202] LD   VE,0x08  ; amount of images
+630f	; [0x204] LD   V3,0x0F	; sprite height
+A226	; [0x206] LD   I,0x226	; start of sprite data
+00e0	; [0x208] CLS		; clear screen
+6200	; [0x20a] LD   V2,0x00	; y position
+6110	; [0x20c] LD   V1,0x10	; x position
+d12f	; [0x20e] DRAW V1,V2,0xf ; draw 15 lines/bytes
+F31E	; [0x210] ADD  I,V3	; increase sprite data pointer
+7108	; [0x212] INC  V1,0x08	; next column/xpos
+3130	; [0x214] SE   V1,0x30	; end of column?
+120e	; [0x216] JP   0x20e	; repeat column
+8234	; [0x218] ADD  V2,V3	; next row/ypos
+321e	; [0x21a] SE   V2,0x1e	; end of row?
+120c	; [0x21c] JP   0x20c	; repeat row
+7001	; [0x21e] INC  V0,0x01	; next image
+50e0	; [0x220] SE   V0,VE	; last image?
+1208	; [0x222] JP   0x208	; repeat image
+1224	; [0x224] JP   0x224	; end
+0000	; data image 1
 0000
 0102
 0408
@@ -77,7 +77,7 @@ CDFD
 0000
 0080
 8080
-0000
+0000	; data img 2
 0001
 0204
 0404
@@ -137,7 +137,7 @@ D4E8
 8040
 A0A0
 A0A0
-0000
+0000	; data img 3
 0000
 0000
 0000
@@ -197,7 +197,7 @@ A040
 8080
 40A0
 D0D0
-031C
+031C	; data img 4
 234F
 478F
 8B45
@@ -257,7 +257,7 @@ A040
 8080
 40A0
 D0D0
-0000
+0000	; data img 5
 0000
 0000
 0001
@@ -317,7 +317,7 @@ A040
 40A0
 50D0
 50D0
-0102
+0102	; data img 6
 0508
 0912
 3142
@@ -377,7 +377,7 @@ DD56
 0000
 0000
 8080
-0000
+0000	; data img 7
 0001
 0204
 0810
@@ -437,7 +437,7 @@ FB34
 1428
 5020
 C040
-0000
+0000	; data img 8
 0000
 0000
 0001

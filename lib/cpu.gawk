@@ -11,7 +11,7 @@ BEGIN {
   mnem["4(.)(..)"]   = "SNE  V%s,0x%s"
   mnem["5(.)(.)0"]   = "SE   V%s,V%s"
   mnem["6(.)(..)"]   = "LD   V%s,0x%s"
-  mnem["7(.)(..)"]   = "INC  V%s,0x%s"
+  mnem["7(.)(..)"]   = "ADD  V%s,0x%s"
   mnem["8(.)(.)0"]   = "LD   V%s,V%s"
   mnem["8(.)(.)1"]   = "OR   V%s,V%s"
   mnem["8(.)(.)2"]   = "AND  V%s,V%s"
@@ -121,7 +121,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # INC Vx, byte (Vx += byte)
+  # ADD Vx, byte (Vx += byte)
   if ( 0x7000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][vx] += awk::and(opcode, 0x00FF)
@@ -160,7 +160,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-  # INC Vx, Vy (Vx += Vy)
+  # ADD Vx, Vy (Vx += Vy)
   if ( 0x8004 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
