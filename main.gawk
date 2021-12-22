@@ -11,13 +11,13 @@ BEGIN {
   chip["cfg"]["width"] = 64
   chip["cfg"]["height"] = 32
   chip["cfg"]["debug"] = 1
-  chip["cfg"]["step"] = 0
-  chip["cfg"]["sleep"] = 0.01
+  chip["cfg"]["step"] = 1
+  #chip["cfg"]["sleep"] = 0.01
 
   # initialize chip-8 computer and load program
   chip8::init(chip)
-  chip8::load(chip, "prgs/multimg.hex", 0x0200)
-  #chip8::load(chip, "prgs/maze.ch8", 0x0200)
+  chip8::load(chip, "prgs/multimg.ch8")
+  #chip8::load(chip, "prgs/maze.ch8")
   #chip8::load(chip, ARGV[1], 0x0200)
 
   # display first output
@@ -50,5 +50,5 @@ BEGIN {
 
 END {
   # show cursor and put at sane location
-  printf("\033[16;1H\033[?25h\n")
+  printf("\033[%d;1H\033[?25h\n", chip["cfg"]["height"]/2)
 }

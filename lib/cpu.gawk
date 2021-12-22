@@ -324,9 +324,9 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0xF033 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = self["I"]
-    self["mem"][i+0] = 0
-    self["mem"][i+1] = 0
-    self["mem"][i+2] = 0
+    self["mem"][i+0] = (vx / 100) % 10
+    self["mem"][i+1] = (vx / 10) % 10
+    self["mem"][i+2] = vx % 10
     return self["pc"] += 2
   }
 
@@ -348,8 +348,8 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return self["pc"] += 2
   }
 
-
-  # no opcode found
+  # no opcode found, halt
+  self["cpu"]["halt"] = 1
   return 0
 }
 

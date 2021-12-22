@@ -92,6 +92,23 @@ function load(self, fname, addr,    ext, _fs, x) {
   FS = _fs
 }
 
+function save(self, fname, len, addr,    ext, i, opcode) {
+  addr = length(addr) ? addr : 0x0200
+  ext = substr(fname, length(fname)-3)
+
+  if (ext == ".hex") {
+    for (i=0; i<len; i+=2) {
+      opcode = self["mem"][addr+i] * 256 + self["mem"][addr+i+1]
+      printf("%04X	; %s\n", opcode, cpu::disasm(opcode)) >>fname
+    }
+  }
+  if (ext == ".ch8") {
+    for (i=0; i<len; i++)
+      printf("%c", self["mem"][addr+i]) >>fname
+  }
+  close(fname)
+}
+
 
 function draw(self, xpos, ypos,    x,y, w,h, up,dn, line) {
   if (self["disp"]["refresh"] == 1) {
@@ -122,8 +139,10 @@ function update_timers(self) {
 
 
 function cycle(self) {
-  cpu::fetch(self)
-  cpu::execute(self)
-  update_timers(self)
+  if (!self["cpu"]["halt"]) {
+    cpu::fetch(self)
+    cpu::execute(self)
+    update_timers(self)
+  }
 }
 
