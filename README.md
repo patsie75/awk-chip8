@@ -8,3 +8,5 @@ So a weekend later I had a working example and this is the result.
 It's currently still very basic and lacks any keyboard input or timer support, but I hope that will be added soon enough(tm).  
 
 Here's an example running slow-step: https://youtu.be/uxXiSEGi6wQ
+
+And a screenshot ![screenshot](/screenshots/chip-8.png)
