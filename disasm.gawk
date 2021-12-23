@@ -1,24 +1,22 @@
-#!/usr/bin/gawk -f 
+#!/usr/bin/gawk -bf
 
-## Let 'od' decode our binary file
-## Process 'od' output with disassembled mnemonics
-
-@include "lib/cpu.gawk"
+@include "lib/chip8.gawk"
 
 BEGIN {
   if (ARGC != 2) {
-    printf("Usage: %s <file>.ch8\n", ARGV[0])
+    printf("Usage: %s <file>.(ch8|hex)\n", ARGV[0])
     exit 1
   }
 
-  addr = 0x0200
-  cmd = sprintf("od --endian=big -v -w2 -t x1 \"%s\"", ARGV[1])
+  dest = substr(ARGV[1], 1, length(ARGV[1])-4 )
+  ext  = substr(ARGV[1], length(ARGV[1])-2 )
 
-  while ((cmd | getline) > 0) {
-    opcode = strtonum("0x"$2$3)
-    printf("%04X\t; [0x%04X] %s\n", opcode, addr, cpu::disasm(opcode) )
-    addr += 2
-  }
+  if (ext == "hex") dest = dest ".ch8"
+  if (ext == "ch8") dest = dest ".hex"
+
+  addr = chip8::load(chip, ARGV[1])
+  printf("Saving %d bytes of memory\n", (addr - 0x200) )
+  chip8::save(chip, dest, (addr - 0x200) )
 
   close(cmd)
 }

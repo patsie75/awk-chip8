@@ -186,7 +186,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0x8006 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][0xF] = self["V"][vx] % 2
-    self["V"][vx] = awk::and(rshift(self["V"][vx], 1), 0xFF)
+    self["V"][vx] = awk::and(awk::rshift(self["V"][vx], 1), 0xFF)
     return 1
   }
 
@@ -204,8 +204,8 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   # SHL Vx, 1 (Vx << 1)
   if ( 0x800E == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
-    self["V"][0xF] = rshift(self["V"][vx], 7)
-    self["V"][vx] = awk::and(lshift(self["V"][vx], 1), 0xFF)
+    self["V"][0xF] = awk::rshift(self["V"][vx], 7)
+    self["V"][vx] = awk::and(awk::lshift(self["V"][vx], 1), 0xFF)
     return 1
   }
 

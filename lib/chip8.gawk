@@ -92,6 +92,8 @@ function load(self, fname, addr,    ext, _fs, x) {
 
   close(fname)
   FS = _fs
+
+  return addr
 }
 
 function save(self, fname, len, addr,    ext, i, opcode) {
@@ -166,7 +168,7 @@ function update_timers(self,    diff) {
   if (cpu >= cpuhz) {
     self["cpu"]["run"] = 1
     self["timer"]["lastcpu"] = now
-  } else awk::sleep(0.0001)
+  } else awk::sleep(0.00001)
 
 }
 

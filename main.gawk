@@ -20,19 +20,16 @@ BEGIN {
 
   # initialize chip-8 computer and load program
   chip8::init(chip)
-  chip8::load(chip, "prgs/multimg.ch8")
-  #chip8::load(chip, "prgs/clock.ch8")
-  #chip8::load(chip, "prgs/maze.ch8")
+  chip8::load(chip, "prgs/idisplay.ch8")
   #chip8::load(chip, ARGV[1], 0x0200)
 
-  # display first output
-  chip8::draw(chip, 1,1)
-
-  if (chip["cfg"]["debug"])
+  if (chip["cfg"]["debug"]) {
+    chip8::draw(chip, 1,1)
     chip8::dump(chip, "all", chip["cfg"]["width"]+2, 1)
 
-  if (chip["cfg"]["step"])
-    getline
+    if (chip["cfg"]["step"])
+      getline
+  }
 
   start = gettimeofday()
 
@@ -50,15 +47,14 @@ BEGIN {
     # wait for enter key to step to the next cycle
     if (chip["cfg"]["step"])
       getline
-
-    if (chip["cfg"]["sleep"])
-      awk::sleep(chip["cfg"]["sleep"])
   }
+
   exit 0
 }
 
 END {
-  # show cursor and put at sane location
-  printf("\033[%d;1H\033[?25h\n", chip["cfg"]["height"]/2)
-  printf("cycles: %d (%.2fHz)\nframes: %d (%.2ffps)\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - start), chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - start) )
+  # show cursor, put at sane location and print some final statistics
+  printf("\033[%d;1H\033[?25h", chip["cfg"]["height"]/2+1)
+  printf("cycles: %d (%.2fHz)\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - start) )
+  printf("frames: %d (%.2ffps)\n", chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - start) )
 }
