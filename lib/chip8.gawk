@@ -1,5 +1,7 @@
 @namespace "chip8"
 
+@load "time"
+
 @include "lib/cpu.gawk"
 
 BEGIN {
@@ -31,7 +33,7 @@ BEGIN {
 function dump(self, val, xpos, ypos,    i, y) {
   switch(val) {
     case /^mem|all/:
-      for (i=self["pc"]-2; i<self["pc"]+30; i+=2) {
+      for (i=self["pc"]-2; i<self["pc"]+14; i+=2) {
         opcode = self["mem"][i] * 256 + self["mem"][i+1]
         printf("\033[%d;%dH%s%04X: %02X %02X [%-14s]%c\033[0m\n", ypos+y++, xpos, (i==self["pc"]) ? "\033[97;101m>" : " ", i, self["mem"][i], self["mem"][i+1], cpu::disasm(opcode), (i==self["pc"]) ? "<" : " " )
       }
@@ -99,7 +101,7 @@ function save(self, fname, len, addr,    ext, i, opcode) {
   if (ext == ".hex") {
     for (i=0; i<len; i+=2) {
       opcode = self["mem"][addr+i] * 256 + self["mem"][addr+i+1]
-      printf("%04X	; %s\n", opcode, cpu::disasm(opcode)) >>fname
+      printf("%04X	; [0x%04X] %s\n", opcode, addr+i, cpu::disasm(opcode)) >>fname
     }
   }
   if (ext == ".ch8") {
@@ -125,24 +127,63 @@ function draw(self, xpos, ypos,    x,y, w,h, up,dn, line) {
       printf("%s\033[0m", line)
     }
     self["disp"]["refresh"] = 0
+    self["disp"]["frames"]++
   }
 }
 
 
-function update_timers(self) {
-  if (self["timer"]["delay"] > 0)
-    self["timer"]["delay"]--
+function update_timers(self,    diff) {
+  #getline <"/proc/uptime"
+  #close("/proc/uptime")
+  now = awk::gettimeofday()
 
-  if (self["timer"]["sound"] > 0)
-    self["timer"]["sound"]--
+  # cpu and delay/sound timer speed
+  cpuhz   = 1 / self["cfg"]["cpuhz"]
+  timerhz = 1 / self["cfg"]["timerhz"]
+
+  # since last update
+  cpu   = now - self["timer"]["lastcpu"]
+  timer = now - self["timer"]["lasttimer"]
+
+  # update delay and sound timers
+  if ( timer >= timerhz ) {
+    if (self["timer"]["delay"] > 0) {
+      self["timer"]["delay"] -= (timer / timerhz)
+      if (self["timer"]["delay"] < 0)
+        self["timer"]["delay"] = 0
+    }
+
+    if (self["timer"]["sound"] > 0) {
+      self["timer"]["sound"] -= (timer / timerhz)
+      if (self["timer"]["sound"] < 0)
+        self["timer"]["sound"] = 0
+    }
+
+    self["timer"]["lasttimer"] = now - (timer % timerhz)
+  }
+
+  # check CPU speed for a new cycle
+  if (cpu >= cpuhz) {
+    self["cpu"]["run"] = 1
+    self["timer"]["lastcpu"] = now
+  } else awk::sleep(0.0001)
+
 }
 
 
 function cycle(self) {
+  # only run if CPU is not in 'halt' status
   if (!self["cpu"]["halt"]) {
-    cpu::fetch(self)
-    cpu::execute(self)
+    # update timers first
     update_timers(self)
+
+    # only run if a cpu has a cycle waiting
+    if (self["cpu"]["run"]) {
+      cpu::fetch(self)
+      cpu::execute(self)
+      self["cpu"]["run"] = 0
+      self["cpu"]["cycles"]++
+    }
   }
 }
 
