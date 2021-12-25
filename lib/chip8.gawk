@@ -27,6 +27,31 @@ BEGIN {
   # set ord table
   for (i=0; i<256; i++)
     ORD[sprintf("%c",i)] = i;
+
+  # low resolution pixels
+  lores["00"] = " "
+  lores["01"] = "▄"
+  lores["10"] = "▀"
+  lores["11"] = "█"
+
+  # high resolution pixels
+  hires["0000"] = " "
+  hires["0001"] = "▗"
+  hires["0010"] = "▖"
+  hires["0011"] = "▄"
+  hires["0100"] = "▝"
+  hires["0101"] = "▐"
+  hires["0110"] = "▞"
+  hires["0111"] = "▟"
+  hires["1000"] = "▘"
+  hires["1001"] = "▚"
+  hires["1010"] = "▌"
+  hires["1011"] = "▙"
+  hires["1100"] = "▀"
+  hires["1101"] = "▜"
+  hires["1110"] = "▛"
+  hires["1111"] = "█"
+
 }
 
 
@@ -62,7 +87,10 @@ function init(self) {
     self["mem"][i] = awk::strtonum("0x" sysfont[i+1])
 
   # display data
+  self["disp"]["width"] = self["cfg"]["width"]
+  self["disp"]["height"] = self["cfg"]["height"]
   self["disp"]["refresh"] = 1
+
 }
 
 
@@ -114,20 +142,24 @@ function save(self, fname, len, addr,    ext, i, opcode) {
 }
 
 
-function draw(self, xpos, ypos,    x,y, w,h, up,dn, line) {
+function draw(self, xpos, ypos,    x,y, w,h, up1, up2, dn1, dn2, line, display) {
   if (self["disp"]["refresh"] == 1) {
-    w = self["cfg"]["width"]
-    h = self["cfg"]["height"]
+    w = self["disp"]["width"]
+    h = self["disp"]["height"]
 
+    display = "\033[32;40m"
     for (y=0; y<h; y+=2) {
-      line = sprintf("\033[%d;%dH\033[32;40m", ypos+(y/2), xpos)
-      for (x=0; x<w; x++) {
-        up = self["disp"][(y+0)*w + x]
-        dn = self["disp"][(y+1)*w + x]
-        line = sprintf("%s%s", line, up ? (dn ? "█" : "▀") : (dn ? "▄" : " "))
+      line = sprintf("\033[%d;%dH", ypos + int(y/2), xpos)
+      for (x=0; x<w; x+=(self["disp"]["hires"]+1)) {
+        up1 = self["disp"][(y+0)*w + (x+0)] + 0
+        up2 = self["disp"][(y+0)*w + (x+1)] + 0
+        dn1 = self["disp"][(y+1)*w + (x+0)] + 0
+        dn2 = self["disp"][(y+1)*w + (x+1)] + 0
+        line = line "" (self["disp"]["hires"] ? hires[up1""up2""dn1""dn2] : lores[up1""dn1])
       }
-      printf("%s\033[0m", line)
+      display = display "" line
     }
+    printf("%s\033[0m", display)
     self["disp"]["refresh"] = 0
     self["disp"]["frames"]++
   }

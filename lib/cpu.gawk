@@ -2,9 +2,15 @@
 
 BEGIN {
   mnem["0000"]       = "NOP"
+  mnem["00C(.)"]     = "SCD 0x%s"
   mnem["00E0"]       = "CLS"
   mnem["00EE"]       = "RET"
-  mnem["0([^0][^0E][^0])"] = "SYS  0x%s"
+#  mnem["0([^0][^0E][^0])"] = "SYS  0x%s"
+  mnem["00FB"]       = "SCR"
+  mnem["00FC"]       = "SCL"
+  mnem["00FD"]       = "EXIT"
+  mnem["00FE"]       = "LOW"
+  mnem["00FF"]       = "HIGH"
   mnem["1(...)"]     = "JP   0x%s"
   mnem["2(...)"]     = "CALL 0x%s"
   mnem["3(.)(..)"]   = "SE   V%s,0x%s"
@@ -62,11 +68,36 @@ function fetch(self,    pc) {
 function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   opcode = self["opcode"]
 
+  # NOP (No Operation)
+  if ( 0x0000 == opcode ) {
+    return 1
+  }
+
+  # SCD <nible> (scroll down content of display 0-7 lines)
+  if ( 0x00C0 == awk::and(opcode, 0xFFF0) ) {
+    size = self["disp"]["hires"] ? awk::and(opcode, 0x000F) : awk::lshift(awk::and(opcode, 0x000F), 1)
+
+    w = self["disp"]["width"]
+    h = self["disp"]["height"]
+
+    for (y=(h-1); y>=size; y--)
+      for (x=0; x<w; x++)
+        self["disp"][y*w+x] = self["disp"][(y-1)*w+x]
+
+    for (y=(size-1); y>=0; y--)
+      for (x=0; x<w; x++)
+        self["disp"][y*w+x] = 0
+
+    self["disp"]["refresh"] = 1
+    return 1
+  }
+
   # CLS (Clear Screen)
   if ( 0x00E0 == opcode ) {
-    n = self["cfg"]["width"] * self["cfg"]["height"]
+    n = self["disp"]["width"] * self["disp"]["height"]
     for (i=0; i<=n; i++)
       self["disp"][i] = 0x00
+
     self["disp"]["refresh"] = 1
     return 1
   }
@@ -74,6 +105,65 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   # RET (Return from subroutine)
   if ( 0x00EE == opcode ) {
     self["pc"] = self["stack"][self["sp"]--] + 2
+    return 1
+  }
+
+  # SCR (Scroll Right, 4 pixels (hires), or 2 pixels (lores))
+  if ( 0x0FB == opcode ) {
+    w = self["disp"]["width"]
+    h = self["disp"]["height"]
+    size = self["disp"]["hires"] ? 4 : 2
+
+    for (y=0; y<height; y++) {
+      yw = y*w
+      for (x=w; x>=size; x--)
+        self["disp"][yw+x] = self["disp"][yw+x-1]
+      for (x=size; x>=0; x--)
+        self["disp"][yw+x] = 0
+    }
+
+    self["disp"]["refresh"] = 1
+    return 1
+  }
+
+  # SCL (Scroll Left, 4 pixels (hires), or 2 pixels (lores))
+  if ( 0x0FB == opcode ) {
+    w = self["disp"]["width"]
+    h = self["disp"]["height"]
+    size = self["disp"]["hires"] ? 4 : 2
+
+    for (y=0; y<height; y++) {
+      yw = y*w
+      for (x=0; x<(w-size); x++)
+        self["disp"][yw+x] = self["disp"][yw+x+1]
+      for (x=(w-size); x<w; x--)
+        self["disp"][yw+x] = 0
+    }
+
+    self["disp"]["refresh"] = 1
+    return 1
+  }
+
+  # EXIT (EXIT emulator)
+  if ( 0x00FD == opcode ) {
+    exit 0
+  }
+
+  # LOW (Low resolution 64x32)
+  if ( 0x00FE == opcode ) {
+    self["disp"]["hires"]  = 0
+    self["disp"]["width"]  = 64
+    self["disp"]["height"] = 32
+    self["disp"]["refresh"] = 1
+    return 1
+  }
+
+  # HIGH (High resolution 128x64)
+  if ( 0x00FF == opcode ) {
+    self["disp"]["hires"]   = 1
+    self["disp"]["width"]   = 128
+    self["disp"]["height"]  = 64
+    self["disp"]["refresh"] = 1
     return 1
   }
 
@@ -142,7 +232,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0x8001 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
-    self["V"][vx] = or(self["V"][vx], self["V"][vy])
+    self["V"][vx] = awk::or(self["V"][vx], self["V"][vy])
     return 1
   }
 
@@ -172,12 +262,13 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return 1
   }
 
-  # DEC Vx, Vy (Vx -= Vy)
+  # SUB Vx, Vy (Vx -= Vy)
   if ( 0x8005 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
     i = self["V"][vx] - self["V"][vy]
     self["V"][0xF] = (i > 0) ? 1 : 0
+    if (i < 0) i = 256 + (i%256)
     self["V"][vx] = awk::and(i, 0xFF)
     return 1
   }
@@ -238,24 +329,40 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     return 1
   }
 
-  # DRAW V1, V2, N (draw byte at [I] at Vx,Vy, N times high)
+  # DRW Vx, Vy, N (draw byte at [I] at Vx,Vy, N times high)
   if ( 0xD000 == awk::and(opcode, 0xF000) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
     n  = awk::and(opcode, 0x000F)
 
-    w = self["cfg"]["width"]
+    w = self["disp"]["width"]
 
-    for (y=0; y<n; y++) {
-      offset = (self["V"][vy] + y) * w + self["V"][vx]
-      byte = self["mem"][(self["I"] + y)]
-      for (x=0; x<8; x++) {
-        bit = awk::and(awk::rshift(byte, (7-x)), 0x01)
-        pre = self["disp"][offset + x]
-        self["disp"][offset + x] = awk::xor(pre, bit)
-        self["V"][0xF] = (bit && pre)
+    self["V"][0xF] = 0
+    if (n > 0) {
+      for (y=0; y<n; y++) {
+        offset = (self["V"][vy]-1 + y) * w + self["V"][vx]-1
+        byte = self["mem"][(self["I"] + y)]
+        for (x=0; x<8; x++) {
+          bit = awk::and(awk::rshift(byte, (7-x)), 0x01)
+          pre = self["disp"][offset + x]
+          self["disp"][offset + x] = awk::xor(pre, bit)
+          self["V"][0xF] = (bit && pre) ? 1 : self["V"][0xF]
+        }
+      }
+    } else {
+      # DXY0 DRW VX, VY, 0 Draw 16x16 pixels sprite from [I] at VX, VY. Sprite is stored in 32 bytes, 2 bytes per row with leftmost byte last.
+      for (y=0; y<16; y++) {
+        offset = (self["V"][vy] + y) * w + self["V"][vx]
+        word = self["mem"][(self["I"] + (y*2))] * 256 + self["mem"][(self["I"] + (y*2) + 1)]
+        for (x=0; x<16; x++) {
+          bit = awk::and(awk::rshift(word, (15-x)), 0x01)
+          pre = self["disp"][offset + x]
+          self["disp"][offset + x] = awk::xor(pre, bit)
+          self["V"][0xF] = (bit && pre) ? 1 : self["V"][0xF]
+        }
       }
     }
+
     self["disp"]["refresh"] = 1
     return 1
   }
@@ -325,9 +432,9 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0xF033 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     i = self["I"]
-    self["mem"][i+0] = (vx / 100) % 10
-    self["mem"][i+1] = (vx / 10) % 10
-    self["mem"][i+2] = vx % 10
+    self["mem"][i+0] = (self["V"][vx] / 100) % 10
+    self["mem"][i+1] = (self["V"][vx] / 10) % 10
+    self["mem"][i+2] = self["V"][vx] % 10
     return 1
   }
 
