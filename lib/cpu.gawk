@@ -82,7 +82,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
 
     for (y=(h-1); y>=size; y--)
       for (x=0; x<w; x++)
-        self["disp"][y*w+x] = self["disp"][(y-1)*w+x]
+        self["disp"][y*w+x] = self["disp"][(y-size)*w+x]
 
     for (y=(size-1); y>=0; y--)
       for (x=0; x<w; x++)
@@ -109,15 +109,15 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   }
 
   # SCR (Scroll Right, 4 pixels (hires), or 2 pixels (lores))
-  if ( 0x0FB == opcode ) {
+  if ( 0x00FB == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
     size = self["disp"]["hires"] ? 4 : 2
 
-    for (y=0; y<height; y++) {
+    for (y=0; y<h; y++) {
       yw = y*w
       for (x=w; x>=size; x--)
-        self["disp"][yw+x] = self["disp"][yw+x-1]
+        self["disp"][yw+x] = self["disp"][yw+x-4]
       for (x=size; x>=0; x--)
         self["disp"][yw+x] = 0
     }
@@ -127,16 +127,16 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   }
 
   # SCL (Scroll Left, 4 pixels (hires), or 2 pixels (lores))
-  if ( 0x0FB == opcode ) {
+  if ( 0x00FC == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
     size = self["disp"]["hires"] ? 4 : 2
 
-    for (y=0; y<height; y++) {
+    for (y=0; y<h; y++) {
       yw = y*w
       for (x=0; x<(w-size); x++)
-        self["disp"][yw+x] = self["disp"][yw+x+1]
-      for (x=(w-size); x<w; x--)
+        self["disp"][yw+x] = self["disp"][yw+x+4]
+      for (x=(w-size); x<w; x++)
         self["disp"][yw+x] = 0
     }
 
@@ -340,7 +340,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     self["V"][0xF] = 0
     if (n > 0) {
       for (y=0; y<n; y++) {
-        offset = (self["V"][vy]-1 + y) * w + self["V"][vx]-1
+        offset = (self["V"][vy] + y) * w + self["V"][vx]
         byte = self["mem"][(self["I"] + y)]
         for (x=0; x<8; x++) {
           bit = awk::and(awk::rshift(byte, (7-x)), 0x01)
