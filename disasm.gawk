@@ -15,9 +15,7 @@ BEGIN {
   if (ext == "ch8") dest = dest ".hex"
 
   addr = chip8::load(chip, ARGV[1])
-  printf("Saving %d bytes of memory\n", (addr - 0x200) )
+  printf("Saving %d bytes of memory to \"%s\"\n", (addr - 0x200), dest)
   chip8::save(chip, dest, (addr - 0x200) )
-
-  close(cmd)
 }
 

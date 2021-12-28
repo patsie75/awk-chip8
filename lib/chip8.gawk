@@ -94,7 +94,7 @@ function init(self) {
 }
 
 
-function load(self, fname, addr,    ext, _fs, x) {
+function load(self, fname, addr,    ext, _fs, x,   end, label, mnem, a, l, unknown, m, argv, opc) {
   addr = length(addr) ? addr : 0x0200
   ext = substr(fname, length(fname)-3)
 
@@ -116,6 +116,59 @@ function load(self, fname, addr,    ext, _fs, x) {
       if (RT)
         self["mem"][addr++] = ORD[RT]
     }
+  }
+
+  # load assembly file
+  if (ext == ".asm") {
+    start = addr
+    _fs = FS
+
+    while ((getline <fname) > 0) {
+      if ($1 ~ /^:/) {
+        # catch labels and save their address
+        label[$1] = sprintf("0x%04X", addr)
+        continue
+      }
+
+      if (NF && ($1 !~ /^;/)) {
+        # strip comments and reduce whitespace
+        gsub(/;.*/, "")
+        gsub(/\s\s*/, " ")
+        gsub(/(^\s*|\s*$)/, "")
+
+        # save leftover as mnemonic
+        if (length($0)) {
+          mnem[addr] = $0
+          addr += 2
+        }
+      }
+    }
+
+    for (a=start; a<addr; a+=2) {
+      # replace all labels with addresses
+      for (l in label)
+        gsub(l, label[l], mnem[a])
+
+      unknown = 1
+      for (m in cpu::opcode) {
+        # put opcode in memory
+        if (match(mnem[a], m, argv)) {
+          #printf("0x%04X: %20s -> "cpu::opcode[m]"\n", a, mnem[a], argv[1], argv[2], argv[3])
+          opc = sprintf(cpu::opcode[m], argv[1], argv[2], argv[3])
+          self["mem"][a+0] = awk::strtonum("0x"substr(opc,1,2))
+          self["mem"][a+1] = awk::strtonum("0x"substr(opc,3,2))
+          unknown = 0
+        }
+      }
+
+      # unknown mnemonic found (typo in code?)
+      if (unknown) {
+        printf("Cannot compile [%s] at address 0x%04X\n", mnem[a], a)
+        getline
+        return -1
+      }
+    }
+
   }
 
   close(fname)
