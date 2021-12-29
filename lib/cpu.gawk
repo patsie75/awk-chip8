@@ -44,7 +44,7 @@ BEGIN {
   mnem["F(.)55"]		= "LD   [I],V%s"
   mnem["F(.)65"]		= "LD   V%s,[I]"
 
-  opcode["NOP"]                 = "0000"
+  opcode["NOO?P"]               = "0000"
   opcode["SCD 0x(.)"]           = "00C%s"
   opcode["CLS"]                 = "00E0"
   opcode["RET"]                 = "00EE"
@@ -53,7 +53,7 @@ BEGIN {
   opcode["EXIT"]                = "00FD"
   opcode["LOW"]                 = "00FE"
   opcode["HIGH"]                = "00FF"
-  opcode["JP 0x0?(...)"]        = "1%s"
+  opcode["JM?P 0x0?(...)"]        = "1%s"
   opcode["CALL 0x0?(...)"]      = "2%s"
   opcode["SE V(.), ?0x(..)"]    = "3%s%s"
   opcode["SNE V(.), ?0x(..)"]   = "4%s%s"
@@ -71,9 +71,9 @@ BEGIN {
   opcode["SHL V(.), ?V(.)"]     = "8%s%sE"
   opcode["SNE V(.), ?V(.)"]     = "9%s%s0"
   opcode["LD I, ?0x0?(...)"]    = "A%s"
-  opcode["JP V0, ?0x0(...)"]    = "B%s"
+  opcode["JM?P V0, ?0x0?(...)"] = "B%s"
   opcode["RND V(.), ?0x(..)"]   = "C%s%s"
-  opcode["DRW V(.), ?V(.), ?0x(.)"] = "D%s%s%s"
+  opcode["DRA?W V(.), ?V(.), ?0x(.)"] = "D%s%s%s"
   opcode["SKP V(.)"]            = "E%s9E"
   opcode["SKNP V(.)"]           = "E%sA1"
   opcode["LD V(.), ?DT"]        = "F%s07"
@@ -110,7 +110,7 @@ function fetch(self,    pc) {
 }
 
 
-function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
+function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,offsety,pre) {
   opcode = self["opcode"]
 
   # NOP (No Operation)
@@ -120,7 +120,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
 
   # SCD <nible> (scroll down content of display 0-7 lines)
   if ( 0x00C0 == awk::and(opcode, 0xFFF0) ) {
-    size = self["disp"]["hires"] ? awk::and(opcode, 0x000F) : awk::lshift(awk::and(opcode, 0x000F), 1)
+    size = awk::and(opcode, 0x000F)
 
     w = self["disp"]["width"]
     h = self["disp"]["height"]
@@ -157,12 +157,12 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0x00FB == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
-    size = self["disp"]["hires"] ? 4 : 2
+    size = int(self["disp"]["width"] / 32)
 
     for (y=0; y<h; y++) {
       yw = y*w
       for (x=w; x>=size; x--)
-        self["disp"][yw+x] = self["disp"][yw+x-4]
+        self["disp"][yw+x] = self["disp"][yw+x-size]
       for (x=size; x>=0; x--)
         self["disp"][yw+x] = 0
     }
@@ -175,12 +175,12 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
   if ( 0x00FC == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
-    size = self["disp"]["hires"] ? 4 : 2
+    size = int(self["disp"]["width"] / 32)
 
     for (y=0; y<h; y++) {
       yw = y*w
       for (x=0; x<(w-size); x++)
-        self["disp"][yw+x] = self["disp"][yw+x+4]
+        self["disp"][yw+x] = self["disp"][yw+x+size]
       for (x=(w-size); x<w; x++)
         self["disp"][yw+x] = 0
     }
@@ -385,24 +385,26 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,bit,offset,pre) {
     self["V"][0xF] = 0
     if (n > 0) {
       for (y=0; y<n; y++) {
-        offset = (self["V"][vy] + y) * w + self["V"][vx]
+        offsety = ((self["V"][vy] + y) % self["disp"]["height"]) * w
         byte = self["mem"][(self["I"] + y)]
         for (x=0; x<8; x++) {
+          offsetx = ((self["V"][vx] + x) % self["disp"]["width"])
           bit = awk::and(awk::rshift(byte, (7-x)), 0x01)
-          pre = self["disp"][offset + x]
-          self["disp"][offset + x] = awk::xor(pre, bit)
+          pre = self["disp"][offsety + offsetx]
+          self["disp"][offsety + offsetx] = awk::xor(pre, bit)
           self["V"][0xF] = (bit && pre) ? 1 : self["V"][0xF]
         }
       }
     } else {
-      # DXY0 DRW VX, VY, 0 Draw 16x16 pixels sprite from [I] at VX, VY. Sprite is stored in 32 bytes, 2 bytes per row with leftmost byte last.
+      # DXY0 Draw 16x16 pixels sprite from [I] at VX, VY. Sprite is stored in 32 bytes, 2 bytes per row with leftmost byte last.
       for (y=0; y<16; y++) {
-        offset = (self["V"][vy] + y) * w + self["V"][vx]
+        offsety = ((self["V"][vy] + y) % self["disp"]["height"]) * w
         word = self["mem"][(self["I"] + (y*2))] * 256 + self["mem"][(self["I"] + (y*2) + 1)]
         for (x=0; x<16; x++) {
+          offsetx = ((self["V"][vx] + x) % self["disp"]["width"])
           bit = awk::and(awk::rshift(word, (15-x)), 0x01)
-          pre = self["disp"][offset + x]
-          self["disp"][offset + x] = awk::xor(pre, bit)
+          pre = self["disp"][offsety + offsetx]
+          self["disp"][offsety + offsetx] = awk::xor(pre, bit)
           self["V"][0xF] = (bit && pre) ? 1 : self["V"][0xF]
         }
       }

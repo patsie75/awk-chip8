@@ -74,13 +74,18 @@ function dump(self, val, xpos, ypos,    i, y) {
       printf("\033[%d;%dHVC-VF: %02X %02X %02X %02X\n", ypos+7, xpos+31, self["V"][0xC], self["V"][0xD], self["V"][0xE], self["V"][0xF])
 
       printf("\033[%d;%dHdelay: %02X, sound %02X\n", ypos+9, xpos+31, self["timer"]["delay"], self["timer"]["sound"])
+      printf("\033[%d;%dHspeed: %.2fHz\n", ypos+10, xpos+31, self["cpu"]["cycles"] / (awk::gettimeofday() - self["start"]))
   }
 }
 
 
 function init(self) {
   # program counter
-  self["pc"]     = 0x0200
+  self["pc"]      = 0x0200
+
+  # set timing intervals
+  self["cpuhz"]   = 1 / self["cfg"]["cpuhz"]
+  self["timerhz"] = 1 / self["cfg"]["timerhz"]
 
   # put system font in memory
   for (i=0; i<0x50; i++)
@@ -224,33 +229,29 @@ function update_timers(self,    diff) {
   #close("/proc/uptime")
   now = awk::gettimeofday()
 
-  # cpu and delay/sound timer speed
-  cpuhz   = 1 / self["cfg"]["cpuhz"]
-  timerhz = 1 / self["cfg"]["timerhz"]
-
   # since last update
   cpu   = now - self["timer"]["lastcpu"]
   timer = now - self["timer"]["lasttimer"]
 
   # update delay and sound timers
-  if ( timer >= timerhz ) {
+  if ( timer >= self["timerhz"] ) {
     if (self["timer"]["delay"] > 0) {
-      self["timer"]["delay"] -= (timer / timerhz)
+      self["timer"]["delay"] -= (timer / self["timerhz"])
       if (self["timer"]["delay"] < 0)
         self["timer"]["delay"] = 0
     }
 
     if (self["timer"]["sound"] > 0) {
-      self["timer"]["sound"] -= (timer / timerhz)
+      self["timer"]["sound"] -= (timer / self["timerhz"])
       if (self["timer"]["sound"] < 0)
         self["timer"]["sound"] = 0
     }
 
-    self["timer"]["lasttimer"] = now - (timer % timerhz)
+    self["timer"]["lasttimer"] = now - (timer % self["timerhz"])
   }
 
   # check CPU speed for a new cycle
-  if (cpu >= cpuhz) {
+  if (cpu >= self["cpuhz"]) {
     self["cpu"]["run"] = 1
     self["timer"]["lastcpu"] = now
   } else awk::sleep(0.00001)
