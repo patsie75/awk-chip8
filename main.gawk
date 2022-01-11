@@ -14,15 +14,19 @@ BEGIN {
   chip["cfg"]["height"]  = 32
   chip["cfg"]["cpuhz"]   = 500
   chip["cfg"]["timerhz"] = 60
-  chip["cfg"]["debug"]   = 0
+  chip["cfg"]["debug"]   = 1
   chip["cfg"]["step"]    = 0
 
   # initialize chip-8 computer and load program
   chip8::init(chip)
 
   #chip8::load(chip, ARGV[1], 0x0200)
-  #chip8::load(chip, "prgs/idisplay.ch8")
-  chip8::load(chip, "prgs/test_opcode.ch8")
+  chip8::load(chip, "prgs/idisplay.ch8")
+  #chip8::load(chip, "prgs/test_opcode.ch8")
+  #chip8::load(chip, "prgs/Keypad Test [Hap, 2006].ch8")
+  #chip8::load(chip, "prgs/Connect 4 [David Winter].ch8")
+  #chip8::load(chip, "prgs/Craps [Camerlo Cortez, 1978].ch8")
+  #chip8::load(chip, "prgs/Kaleidoscope [Joseph Weisbecker, 1978].ch8")
 
   if (chip["cfg"]["debug"]) {
     chip8::draw(chip, 1,1)
@@ -32,7 +36,7 @@ BEGIN {
       getline
   }
 
-  start = gettimeofday()
+  chip["start"] = gettimeofday()
 
   # run the chip-8 machine
   while ("awk" != "difficult") {
@@ -55,6 +59,6 @@ BEGIN {
 END {
   # show cursor, put at sane location and print some final statistics
   printf("\033[%d;1H\033[?25h", chip["disp"]["height"]/2+1)
-  printf("cycles: %d (%.2fHz)\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - start) )
-  printf("frames: %d (%.2ffps)\n", chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - start) )
+  printf("cycles: %d (%.2fHz)\r\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - chip["start"]) )
+  printf("frames: %d (%.2ffps)\r\n", chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - chip["start"]) )
 }

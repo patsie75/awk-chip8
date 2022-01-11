@@ -2,7 +2,7 @@
 0x0200  LD V0,0x00	; image counter
 0x0202  LD VE,0x08	; number of images
 0x0204  LD V3,0x0F	; height of sprite
-0x0206	LV V4,0x78	; delay between pictures (0x78 == 120 == 2 secs)
+0x0206	LD V4,0x78	; delay between pictures (0x78 == 120 == 2 secs)
 
 0x0208  LD I,:img1	; first image position
        :draw0
@@ -11,14 +11,14 @@
        :draw1
 0x020e  LD V1,0x10	; xpos (16)
        :draw2
-0x0210  DRAW V1,V2,0xF	; draw 15 bytes
+0x0210  DRW V1,V2,0xF	; draw 15 bytes
 0x0212  ADD I,V3	; move data pointer
 0x0214  ADD V1,0x08	; xpos += 8
 0x0216  SE  V1,0x30	; columns finished?
-0x0218  JMP :draw2
+0x0218  JP  :draw2
 0x021a  ADD V2,V3	; ypos += 15
 0x021c  SE  V2,0x1E	; rows finished?
-0x021e  JMP :draw1
+0x021e  JP  :draw1
 
 0x0220	LD  DT,V4	; set delay timer
        :delay
@@ -28,9 +28,9 @@
 
 0x0228  ADD V0, 1	; next image
 0x022a  SE  V0,VE	; last image?
-0x022c  JMP :draw0
+0x022c  JP  :draw0
         :end
-0x022e  JMP :end
+0x022e  JP  :end
        :img1
 0x0230  <DATA>
 
