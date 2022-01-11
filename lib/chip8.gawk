@@ -74,7 +74,7 @@ function dump(self, val, xpos, ypos,    i, y) {
       printf("\033[%d;%dHVC-VF: %02X %02X %02X %02X\n", ypos+7, xpos+31, self["V"][0xC], self["V"][0xD], self["V"][0xE], self["V"][0xF])
 
       printf("\033[%d;%dHdelay: %02X, sound %02X\n", ypos+9, xpos+31, self["timer"]["delay"], self["timer"]["sound"])
-      printf("\033[%d;%dHspeed: %.2fHz\n", ypos+10, xpos+31, self["cpu"]["cycles"] / (awk::gettimeofday() - self["start"]))
+      printf("\033[%d;%dHframes: %d, speed: %.2fHz\n", ypos+10, xpos+31, self["cpu"]["cycles"], self["cpu"]["cycles"] / (awk::gettimeofday() - self["start"]))
   }
 }
 
@@ -257,7 +257,6 @@ function update_timers(self,    diff) {
   } else awk::sleep(0.00001)
 
 }
-
 
 function cycle(self) {
   # only run if CPU is not in 'halt' status
