@@ -332,8 +332,10 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
 
     i = self["V"][vy] - self["V"][vx]
-    self["V"][0xF] = (self["V"][vy] >= self["V"][vx])
-    self["V"][vx] = awk::and(i, 0xFF)
+    if (self["V"][vy] >= self["V"][vx]) {
+      self["V"][0xF] = 1
+      i += 256
+    }
     return 1
   }
 
@@ -417,8 +419,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
   # SKP Vx (Check keypress with Vx)
   if ( 0xE09E == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
-    ## TODO check keymap/keypress
-    if (self["V"][vx])
+    if (self["keyboard"][vx] > 0)
       self["pc"] += 2
     return 1
   }
@@ -426,8 +427,7 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
   # SKNP Vx (Check not-keypressed with Vx)
   if ( 0xE0A1 == awk::and(opcode, 0xF0FF) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
-    ## TODO check keymap/keypress
-    if (self["V"][vx])
+    if (self["keyboard"][vx] == 0)
       self["pc"] += 2
     return 1
   }
