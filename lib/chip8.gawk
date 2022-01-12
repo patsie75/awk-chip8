@@ -75,6 +75,11 @@ function dump(self, val, xpos, ypos,    i, y) {
 
       printf("\033[%d;%dHdelay: %02X, sound %02X\n", ypos+9, xpos+31, self["timer"]["delay"], self["timer"]["sound"])
       printf("\033[%d;%dHframes: %d, speed: %.2fHz\n", ypos+10, xpos+31, self["cpu"]["cycles"], self["cpu"]["cycles"] / (awk::gettimeofday() - self["start"]))
+
+      printf("\033[%d;%dH[%s1\033[0m][%s2\033[0m][%s3\033[0m][%sC\033[0m]\n", ypos+12, xpos+31, self["keyboard"][0x1]?"\033[97;101m":"", self["keyboard"][0x2]?"\033[97;101m":"", self["keyboard"][0x3]?"\033[97;101m":"", self["keyboard"][0xc]?"\033[97;101m":"")
+      printf("\033[%d;%dH[%s4\033[0m][%s5\033[0m][%s6\033[0m][%sD\033[0m]\n", ypos+13, xpos+31, self["keyboard"][0x4]?"\033[97;101m":"", self["keyboard"][0x5]?"\033[97;101m":"", self["keyboard"][0x6]?"\033[97;101m":"", self["keyboard"][0xd]?"\033[97;101m":"")
+      printf("\033[%d;%dH[%s7\033[0m][%s8\033[0m][%s9\033[0m][%sE\033[0m]\n", ypos+14, xpos+31, self["keyboard"][0x7]?"\033[97;101m":"", self["keyboard"][0x8]?"\033[97;101m":"", self["keyboard"][0x9]?"\033[97;101m":"", self["keyboard"][0xe]?"\033[97;101m":"")
+      printf("\033[%d;%dH[%sA\033[0m][%s0\033[0m][%sB\033[0m][%sF\033[0m]\n", ypos+15, xpos+31, self["keyboard"][0xa]?"\033[97;101m":"", self["keyboard"][0x0]?"\033[97;101m":"", self["keyboard"][0xb]?"\033[97;101m":"", self["keyboard"][0xf]?"\033[97;101m":"")
   }
 }
 
@@ -84,8 +89,9 @@ function init(self) {
   self["pc"]      = 0x0200
 
   # set timing intervals
-  self["cpuhz"]   = 1 / self["cfg"]["cpuhz"]
-  self["timerhz"] = 1 / self["cfg"]["timerhz"]
+  self["cpuhz"]      = 1 / self["cfg"]["cpuhz"]
+  self["timerhz"]    = 1 / self["cfg"]["timerhz"]
+  self["keyboardhz"] = 1 / self["cfg"]["keyboardhz"]
 
   # put system font in memory
   for (i=0; i<0x50; i++)
@@ -96,6 +102,7 @@ function init(self) {
   self["disp"]["height"] = self["cfg"]["height"]
   self["disp"]["refresh"] = 1
 
+  self["keyboard"]["0"] = 0
 }
 
 
@@ -224,7 +231,7 @@ function draw(self, xpos, ypos,    x,y, w,h, up1, up2, dn1, dn2, line, display) 
 }
 
 
-function update_timers(self,    diff) {
+function update_timers(self,    now, cpu, timer, kb, i, key, cmd) {
   #getline <"/proc/uptime"
   #close("/proc/uptime")
   now = awk::gettimeofday()
@@ -232,6 +239,52 @@ function update_timers(self,    diff) {
   # since last update
   cpu   = now - self["timer"]["lastcpu"]
   timer = now - self["timer"]["lasttimer"]
+  kb    = now - self["timer"]["keyboard"]
+
+  if (kb >= self["keyboardhz"]) {
+    for (i in self["keyboard"]) {
+      if (self["keyboard"][i] > 0)
+        self["keyboard"][i]--
+    }
+
+    cmd = "timeout --foreground 0.002 dd bs=1 count=1 2>/dev/null"
+    if ((cmd | getline key) < 1) key=""
+    close(cmd)
+  
+    switch(key) {
+      ## Keyboard layout/mapping
+      # CHIP8      PC
+      # 1 2 3 C    1 2 3 4
+      # 4 5 6 D    q w e r
+      # 7 8 9 E    a s d f
+      # A 0 B F    z x c v
+  
+      case "1": self["keyboard"][0x1] = 3; break
+      case "2": self["keyboard"][0x2] = 3; break
+      case "3": self["keyboard"][0x3] = 3; break
+      case "4": self["keyboard"][0xc] = 3; break
+  
+      case "q": self["keyboard"][0x4] = 3; break
+      case "w": self["keyboard"][0x5] = 3; break
+      case "e": self["keyboard"][0x6] = 3; break
+      case "r": self["keyboard"][0xd] = 3; break
+  
+      case "a": self["keyboard"][0x7] = 3; break
+      case "s": self["keyboard"][0x8] = 3; break
+      case "d": self["keyboard"][0x9] = 3; break
+      case "f": self["keyboard"][0xe] = 3; break
+  
+      case "z": self["keyboard"][0xa] = 3; break
+      case "x": self["keyboard"][0x0] = 3; break
+      case "c": self["keyboard"][0xb] = 3; break
+      case "v": self["keyboard"][0xf] = 3; break
+  
+      # escape exits
+      case "\033": exit 0
+    }
+
+    self["timer"]["keyboard"] = now
+  }
 
   # update delay and sound timers
   if ( timer >= self["timerhz"] ) {

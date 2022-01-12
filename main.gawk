@@ -10,12 +10,13 @@ BEGIN {
   printf("\033[?25l")
 
   # config (to be loaded from file in future)
-  chip["cfg"]["width"]   = 64
-  chip["cfg"]["height"]  = 32
-  chip["cfg"]["cpuhz"]   = 500
-  chip["cfg"]["timerhz"] = 60
-  chip["cfg"]["debug"]   = 1
-  chip["cfg"]["step"]    = 0
+  chip["cfg"]["width"]      = 64
+  chip["cfg"]["height"]     = 32
+  chip["cfg"]["cpuhz"]      = 500
+  chip["cfg"]["timerhz"]    = 60
+  chip["cfg"]["keyboardhz"] = 20
+  chip["cfg"]["debug"]      = 1
+  chip["cfg"]["step"]       = 0
 
   # initialize chip-8 computer and load program
   chip8::init(chip)
@@ -23,10 +24,6 @@ BEGIN {
   #chip8::load(chip, ARGV[1], 0x0200)
   chip8::load(chip, "prgs/idisplay.ch8")
   #chip8::load(chip, "prgs/test_opcode.ch8")
-  #chip8::load(chip, "prgs/Keypad Test [Hap, 2006].ch8")
-  #chip8::load(chip, "prgs/Connect 4 [David Winter].ch8")
-  #chip8::load(chip, "prgs/Craps [Camerlo Cortez, 1978].ch8")
-  #chip8::load(chip, "prgs/Kaleidoscope [Joseph Weisbecker, 1978].ch8")
 
   if (chip["cfg"]["debug"]) {
     chip8::draw(chip, 1,1)
