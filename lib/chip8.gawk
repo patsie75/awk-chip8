@@ -247,7 +247,7 @@ function update_timers(self,    now, cpu, timer, kb, i, key, cmd) {
         self["keyboard"][i]--
     }
 
-    cmd = "timeout --foreground 0.002 dd bs=1 count=1 2>/dev/null"
+    cmd = "timeout --foreground 0.001 dd bs=1 count=1 2>/dev/null"
     if ((cmd | getline key) < 1) key=""
     close(cmd)
   

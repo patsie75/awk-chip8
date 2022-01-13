@@ -1,39 +1,39 @@
 Standard CHIP-8 opcodes:
- 00E0 - CLS
- 00EE - RET
+ 00E0 - CLS		Clear the screen
+ 00EE - RET		Pop Program Counter from Stack
  0nnn - SYS addr	(not used anymore)
- 1nnn - JP addr
- 2nnn - CALL addr
- 3xkk - SE Vx, byte
- 4xkk - SNE Vx, byte
- 5xy0 - SE Vx, Vy
- 6xkk - LD Vx, byte
- 7xkk - ADD Vx, byte
- 8xy0 - LD Vx, Vy
- 8xy1 - OR Vx, Vy
- 8xy2 - AND Vx, Vy
- 8xy3 - XOR Vx, Vy
- 8xy4 - ADD Vx, Vy
- 8xy5 - SUB Vx, Vy
- 8xy6 - SHR Vx {, Vy}
- 8xy7 - SUBN Vx, Vy
- 8xyE - SHL Vx {, Vy}
- 9xy0 - SNE Vx, Vy
- Annn - LD I, addr
- Bnnn - JP V0, addr
- Cxkk - RND Vx, byte
- Dxyn - DRW Vx, Vy, nibble
- Ex9E - SKP Vx
- ExA1 - SKNP Vx
- Fx07 - LD Vx, DT
- Fx0A - LD Vx, K
- Fx15 - LD DT, Vx
- Fx18 - LD ST, Vx
- Fx1E - ADD I, Vx
- Fx29 - LD F, Vx
+ 1nnn - JP addr		Jump to <addr>
+ 2nnn - CALL addr	Push current Program Counter on Stack and jump to <addr>
+ 3xkk - SE Vx, byte	Increase PC with 1 opcode/2 bytes if Vx is equal to <byte>
+ 4xkk - SNE Vx, byte	Increase PC with 1 opcode/2 bytes if Vx is not equal to <byte>
+ 5xy0 - SE Vx, Vy	Increase PC with 1 opcode/2 bytes if Vx is equal to Vy
+ 6xkk - LD Vx, byte	Load <byte> into Vx
+ 7xkk - ADD Vx, byte	Increase Vx with <byte>
+ 8xy0 - LD Vx, Vy	Load Vy into Vx
+ 8xy1 - OR Vx, Vy	Bitwise OR Vx and Vy and store in Vx
+ 8xy2 - AND Vx, Vy	Bitwise AND Vx and Vy and store in Vx
+ 8xy3 - XOR Vx, Vy	Bitwise XOR vX and Vy and store in Vx
+ 8xy4 - ADD Vx, Vy	Increase Vx with Vy
+ 8xy5 - SUB Vx, Vy	Decrease Vx with Vy
+ 8xy6 - SHR Vx {, Vy}	Bitwise Shift Right Vx with 1, a 0 is put in the Most Significant Bit
+ 8xy7 - SUBN Vx, Vy	Decrease Vx with Vy
+ 8xyE - SHL Vx {, Vy}	Bitwise Shift Left Vx with 1. A 0 is put in the Least Significant Bit
+ 9xy0 - SNE Vx, Vy	Increase PC with 1 opcode/2 bytes if Vx is not equal to Vy
+ Annn - LD I, addr	Load <addr> into I
+ Bnnn - JP V0, addr	Jump to <addr> + V0
+ Cxkk - RND Vx, byte	Load a random number (0-255) bitwise AND, into Vx
+ Dxyn - DRW Vx, Vy, nibble Draw a sprite at screen location Vx (xpos), Vy (ypos), with height <nibble> lines. Data is fetched from address I
+ Ex9E - SKP Vx		Increase PC with 1 opcode/2 bytes if key Vx is pressed
+ ExA1 - SKNP Vx		Increase PC with 1 opcode/2 bytes if key Vx is not pressed
+ Fx07 - LD Vx, DT	Load value of Delay Timer into Vx
+ Fx0A - LD Vx, K	Wait for keypress and load value of key into Vx
+ Fx15 - LD DT, Vx	Load value of Vx into Delay Timer
+ Fx18 - LD ST, Vx	Load value of Vx into Sound Timer
+ Fx1E - ADD I, Vx	Increase I with Vx
+ Fx29 - LD F, Vx	Load I with address of font represented by character Vx
  Fx33 - LD B, Vx
- Fx55 - LD [I], Vx
- Fx65 - LD Vx, [I]
+ Fx55 - LD [I], Vx	Load registers V0 through Vx into memory location I through I+Vx
+ Fx65 - LD Vx, [I]	Load memory location I through I+Vx into registers V0 through Vx
 
 Super CHIP (SCHIP) opcodes
  00Cn - SCD nibble
