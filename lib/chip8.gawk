@@ -54,6 +54,31 @@ BEGIN {
 
 }
 
+function loadcfg(self, fname,    a, section, keyval, n) {
+  while ((getline <fname) > 0) {
+    # have ini-style [section] tags
+    if (match($0, /^\[([^]]*)\]$/, a))
+      section = a[1]
+
+    # skip comments and split key=value pairs
+    if ( ($0 !~ /^ *(#|;)/) && (match($0, /([^=]+)=(.+)/, keyval) > 0) ) {
+      ## strip leading/trailing spaces and doublequotes
+      gsub(/^ *"?|"? *$/, "", keyval[1])
+      gsub(/^ *"?|"? *$/, "", keyval[2])
+
+      # convert hex values to numbers
+      #if (substr(keyval[2], 1, 2) == "0x")
+        keyval[2] = awk::strtonum(keyval[2])
+
+      self["cfg"][section][keyval[1]] = keyval[2]
+      #printf("cfg[%s][%s] = %s\n", section, keyval[1], keyval[2])
+      n++
+    }
+  }
+  close(fname)
+  return n
+}
+
 
 function dump(self, val, xpos, ypos,    i, y) {
   switch(val) {
@@ -89,20 +114,20 @@ function init(self) {
   self["pc"]      = 0x0200
 
   # set timing intervals
-  self["cpuhz"]      = 1 / self["cfg"]["cpuhz"]
-  self["timerhz"]    = 1 / self["cfg"]["timerhz"]
-  self["keyboardhz"] = 1 / self["cfg"]["keyboardhz"]
+  self["cpuhz"]      = 1 / self["cfg"]["cpu"]["cpuhz"]
+  self["timerhz"]    = 1 / self["cfg"]["cpu"]["timerhz"]
+  self["keyboardhz"] = 1 / self["cfg"]["cpu"]["keyboardhz"]
 
   # put system font in memory
   for (i=0; i<0x50; i++)
     self["mem"][i] = awk::strtonum("0x" sysfont[i+1])
 
   # display data
-  self["disp"]["width"] = self["cfg"]["width"]
-  self["disp"]["height"] = self["cfg"]["height"]
+  self["disp"]["width"]   = self["cfg"]["display"]["width"]
+  self["disp"]["height"]  = self["cfg"]["display"]["height"]
   self["disp"]["refresh"] = 1
 
-  self["keyboard"]["0"] = 0
+  self["keyboard"][0] = 0
 }
 
 
@@ -231,9 +256,29 @@ function draw(self, xpos, ypos,    x,y, w,h, up1, up2, dn1, dn2, line, display) 
 }
 
 
+function keyboard(self,    key, cmd, val) {
+  # release any virtual key after a number of cycles
+  for (key in self["keyboard"]) 
+    if (self["keyboard"][key] > 0)
+      self["keyboard"][key]--
+
+  # get real keyboard input from OS
+  cmd = "timeout --foreground 0.001 dd bs=1 count=1 2>/dev/null"
+  if ((cmd | getline key) < 1) key=""
+  close(cmd)
+
+  # register virtual keypress 
+  if (key in self["cfg"]["keyboard"]) {
+    val = self["cfg"]["keyboard"][key]
+    self["keyboard"][val] = 3
+  }
+
+  # escape exits emulator
+  if (key == "\033") exit 0
+}
+
+
 function update_timers(self,    now, cpu, timer, kb, i, key, cmd) {
-  #getline <"/proc/uptime"
-  #close("/proc/uptime")
   now = awk::gettimeofday()
 
   # since last update
@@ -241,48 +286,9 @@ function update_timers(self,    now, cpu, timer, kb, i, key, cmd) {
   timer = now - self["timer"]["lasttimer"]
   kb    = now - self["timer"]["keyboard"]
 
-  if (kb >= self["keyboardhz"]) {
-    for (i in self["keyboard"]) {
-      if (self["keyboard"][i] > 0)
-        self["keyboard"][i]--
-    }
-
-    cmd = "timeout --foreground 0.001 dd bs=1 count=1 2>/dev/null"
-    if ((cmd | getline key) < 1) key=""
-    close(cmd)
-  
-    switch(key) {
-      ## Keyboard layout/mapping
-      # CHIP8      PC
-      # 1 2 3 C    1 2 3 4
-      # 4 5 6 D    q w e r
-      # 7 8 9 E    a s d f
-      # A 0 B F    z x c v
-  
-      case "1": self["keyboard"][0x1] = 3; break
-      case "2": self["keyboard"][0x2] = 3; break
-      case "3": self["keyboard"][0x3] = 3; break
-      case "4": self["keyboard"][0xc] = 3; break
-  
-      case "q": self["keyboard"][0x4] = 3; break
-      case "w": self["keyboard"][0x5] = 3; break
-      case "e": self["keyboard"][0x6] = 3; break
-      case "r": self["keyboard"][0xd] = 3; break
-  
-      case "a": self["keyboard"][0x7] = 3; break
-      case "s": self["keyboard"][0x8] = 3; break
-      case "d": self["keyboard"][0x9] = 3; break
-      case "f": self["keyboard"][0xe] = 3; break
-  
-      case "z": self["keyboard"][0xa] = 3; break
-      case "x": self["keyboard"][0x0] = 3; break
-      case "c": self["keyboard"][0xb] = 3; break
-      case "v": self["keyboard"][0xf] = 3; break
-  
-      # escape exits
-      case "\033": exit 0
-    }
-
+  # update virtual keyboard
+  if ( kb >= self["keyboardhz"] ) {
+    chip8::keyboard(self)
     self["timer"]["keyboard"] = now
   }
 

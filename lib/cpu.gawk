@@ -446,42 +446,18 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     self["V"][vx] = 0x00
 
-    # wait for key press
+    # get real keyboard input from OS 
     cmd = "dd bs=1 count=1 2>/dev/null"
     if ((cmd | getline key) < 1) key=""
     close(cmd)
 
-    switch(key) {
-      ## Keyboard layout/mapping
-      # CHIP8      PC
-      # 1 2 3 C    1 2 3 4
-      # 4 5 6 D    q w e r
-      # 7 8 9 E    a s d f
-      # A 0 B F    z x c v
+    # register virtual keypress 
+    if (key in self["cfg"]["keyboard"])
+      self["V"][vx] = self["cfg"]["keyboard"][key]
 
-      case "1": self["V"][vx] = 0x01; break
-      case "2": self["V"][vx] = 0x02; break
-      case "3": self["V"][vx] = 0x03; break
-      case "4": self["V"][vx] = 0x0c; break
+    # escape exits emulator
+    if (key == "\033") exit 0
 
-      case "q": self["V"][vx] = 0x04; break
-      case "w": self["V"][vx] = 0x05; break
-      case "e": self["V"][vx] = 0x06; break
-      case "r": self["V"][vx] = 0x0d; break
-
-      case "a": self["V"][vx] = 0x07; break
-      case "s": self["V"][vx] = 0x08; break
-      case "d": self["V"][vx] = 0x09; break
-      case "f": self["V"][vx] = 0x0e; break
-
-      case "z": self["V"][vx] = 0x0a; break
-      case "x": self["V"][vx] = 0x00; break
-      case "c": self["V"][vx] = 0x0b; break
-      case "v": self["V"][vx] = 0x0f; break
-
-      # escape exits
-      case "\033": exit 0
-    }
     return 1
   }
 
