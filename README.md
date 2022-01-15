@@ -7,6 +7,6 @@ Some chill weekend in late december (why do I always have these ideas around the
 
 So a weekend later I had a working example and this is the result.  
 
-Here's an example running slow-step: https://youtu.be/uxXiSEGi6wQ
+Here's an example running the emulator: https://youtu.be/no2hFiuz42Y
 
 And a screenshot ![screenshot](/screenshots/chip-8.png)
