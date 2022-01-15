@@ -54,29 +54,39 @@ BEGIN {
 
 }
 
-function loadcfg(self, fname,    a, section, keyval, n) {
+
+## load ini-style configuration
+function loadini(self, fname,    a, section, keyval, val_is_quoted) {
   while ((getline <fname) > 0) {
     # have ini-style [section] tags
-    if (match($0, /^\[([^]]*)\]$/, a))
+    if (match($0, /^\[([^]]*)\][[:blank:]]*$/, a))
       section = a[1]
 
     # skip comments and split key=value pairs
-    if ( ($0 !~ /^ *(#|;)/) && (match($0, /([^=]+)=(.+)/, keyval) > 0) ) {
+    if ( ($0 !~ /^[[:blank:]]*(#|;)/) && (match($0, /([^=]+)=(.+)/, keyval) > 0) ) {
       ## strip leading/trailing spaces and doublequotes
-      gsub(/^ *"?|"? *$/, "", keyval[1])
-      gsub(/^ *"?|"? *$/, "", keyval[2])
+      gsub(/^[[:blank:]]*"?|"?[[:blank:]]*$/, "", keyval[1])
+      gsub(/^[[:blank:]]*|[[:blank:]]*$/, "", keyval[2])
 
-      # convert hex values to numbers
-      #if (substr(keyval[2], 1, 2) == "0x")
+      val_is_quoted = 0
+      if (keyval[2] ~ /^".*"$/) {
+        gsub(/^"|"$/, "", keyval[2])
+        val_is_quoted = 1
+      }
+
+      # convert string numbers to actual numbers
+      if ( !val_is_quoted && (keyval[2]+0 == keyval[2]) )
         keyval[2] = awk::strtonum(keyval[2])
 
+      # convert hex values to numbers
+      if ( !val_is_quoted && (substr(keyval[2], 1, 2) == "0x") )
+        keyval[2] = sprintf("%c", awk::strtonum(keyval[2]))
+
       self["cfg"][section][keyval[1]] = keyval[2]
-      #printf("cfg[%s][%s] = %s\n", section, keyval[1], keyval[2])
-      n++
+      #printf("cfg[%s][%s] = %s\r\n", section, keyval[1], keyval[2])
     }
   }
   close(fname)
-  return n
 }
 
 
@@ -114,9 +124,13 @@ function init(self) {
   self["pc"]      = 0x0200
 
   # set timing intervals
-  self["cpuhz"]      = 1 / self["cfg"]["cpu"]["cpuhz"]
-  self["timerhz"]    = 1 / self["cfg"]["cpu"]["timerhz"]
-  self["keyboardhz"] = 1 / self["cfg"]["cpu"]["keyboardhz"]
+  self["cpu"]["cpuhz"]         =  self["cfg"]["cpu"]["cpuhz"]
+  self["cpu"]["timerhz"]       =  self["cfg"]["cpu"]["timerhz"]
+  self["cpu"]["keyboardhz"]    =  self["cfg"]["cpu"]["keyboardhz"]
+
+  self["cpu"]["cpusleep"]      = 1 / self["cpu"]["cpuhz"]
+  self["cpu"]["timersleep"]    = 1 / self["cpu"]["timerhz"]
+  self["cpu"]["keyboardsleep"] = 1 / self["cpu"]["keyboardhz"]
 
   # put system font in memory
   for (i=0; i<0x50; i++)
@@ -125,9 +139,11 @@ function init(self) {
   # display data
   self["disp"]["width"]   = self["cfg"]["display"]["width"]
   self["disp"]["height"]  = self["cfg"]["display"]["height"]
+  self["disp"]["hires"]   = self["cfg"]["display"]["hires"]
   self["disp"]["refresh"] = 1
 
-  self["keyboard"][0] = 0
+  # make sure "keyboard" is an array
+  self["keyboard"]["1"] = 0
 }
 
 
@@ -269,12 +285,66 @@ function keyboard(self,    key, cmd, val) {
 
   # register virtual keypress 
   if (key in self["cfg"]["keyboard"]) {
-    val = self["cfg"]["keyboard"][key]
+    val = awk::strtonum("0x"self["cfg"]["keyboard"][key])
     self["keyboard"][val] = 3
   }
 
   # escape exits emulator
-  if (key == "\033") exit 0
+  if (key == self["cfg"]["emulator"]["exit"]) exit 0
+
+  if (key == self["cfg"]["emulator"]["hires"]) {
+    self["disp"]["hires"] = !self["disp"]["hires"]
+    self["disp"]["refresh"] = 1
+    printf("\033[?2J")
+  }
+
+  if (key == self["cfg"]["emulator"]["stop"]) {
+    if (self["cpu"]["cpuhz"] == 0) {
+      self["cpu"]["cpuhz"] = self["cfg"]["cpu"]["cpuhz"]
+      self["cpu"]["cpusleep"] = 1 / self["cpu"]["cpuhz"]
+    } else {
+      self["cpu"]["cpuhz"] = 0
+      self["cpu"]["cpusleep"] = 1000000
+    }
+  }
+
+  if (key == self["cfg"]["emulator"]["speed-10"]) {
+    if (self["cpu"]["cpuhz"] >= 10)
+      self["cpu"]["cpuhz"] -= 10
+    else
+      self["cpu"]["cpuhz"] = 0
+    self["cpu"]["cpusleep"] = self["cpu"]["cpuhz"] ? (1 / self["cpu"]["cpuhz"]) : 1000000
+  }
+
+  if (key == self["cfg"]["emulator"]["speed+10"]) {
+    if (self["cpu"]["cpuhz"] < 2000)
+      self["cpu"]["cpuhz"] += 10
+    else
+      self["cpu"]["cpuhz"] = 2000
+    self["cpu"]["cpusleep"] = self["cpu"]["cpuhz"] ? (1 / self["cpu"]["cpuhz"]) : 1000000
+  }
+
+  if (key == self["cfg"]["emulator"]["speed-1"]) {
+    if (self["cpu"]["cpuhz"] >= 1) {
+      self["cpu"]["cpuhz"] -= 1
+      self["cpu"]["cpusleep"] = self["cpu"]["cpuhz"] ? (1 / self["cpu"]["cpuhz"]) : 1000000
+    }
+  }
+
+  if (key == self["cfg"]["emulator"]["speed+1"]) {
+    if (self["cpu"]["cpuhz"] < 2000) {
+      self["cpu"]["cpuhz"] += 1
+      self["cpu"]["cpusleep"] = self["cpu"]["cpuhz"] ? (1 / self["cpu"]["cpuhz"]) : 1000000
+    }
+  }
+
+  if (key == self["cfg"]["emulator"]["debug"])
+    self["cfg"]["main"]["debug"] = !self["cfg"]["main"]["debug"]
+
+  if ((key == self["cfg"]["emulator"]["step"]) && (self["cpu"]["cpuhz"] == 0)) {
+    self["cpu"]["run"] = 1
+    self["timer"]["lastcpu"] = awk::gettimeofday()
+  }
 }
 
 
@@ -287,30 +357,30 @@ function update_timers(self,    now, cpu, timer, kb, i, key, cmd) {
   kb    = now - self["timer"]["keyboard"]
 
   # update virtual keyboard
-  if ( kb >= self["keyboardhz"] ) {
+  if ( kb >= self["cpu"]["keyboardsleep"] ) {
     chip8::keyboard(self)
     self["timer"]["keyboard"] = now
   }
 
   # update delay and sound timers
-  if ( timer >= self["timerhz"] ) {
+  if ( timer >= self["cpu"]["timersleep"] ) {
     if (self["timer"]["delay"] > 0) {
-      self["timer"]["delay"] -= (timer / self["timerhz"])
+      self["timer"]["delay"] -= (timer / self["cpu"]["timersleep"])
       if (self["timer"]["delay"] < 0)
         self["timer"]["delay"] = 0
     }
 
     if (self["timer"]["sound"] > 0) {
-      self["timer"]["sound"] -= (timer / self["timerhz"])
+      self["timer"]["sound"] -= (timer / self["cpu"]["timersleep"])
       if (self["timer"]["sound"] < 0)
         self["timer"]["sound"] = 0
     }
 
-    self["timer"]["lasttimer"] = now - (timer % self["timerhz"])
+    self["timer"]["lasttimer"] = now - (timer % self["cpu"]["timersleep"])
   }
 
   # check CPU speed for a new cycle
-  if (cpu >= self["cpuhz"]) {
+  if ( cpu >= self["cpu"]["cpusleep"] ) {
     self["cpu"]["run"] = 1
     self["timer"]["lastcpu"] = now
   } else awk::sleep(0.00001)

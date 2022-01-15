@@ -53,7 +53,7 @@ BEGIN {
   opcode["EXIT"]                = "00FD"
   opcode["LOW"]                 = "00FE"
   opcode["HIGH"]                = "00FF"
-  opcode["JM?P 0x0?(...)"]        = "1%s"
+  opcode["JM?P 0x0?(...)"]      = "1%s"
   opcode["CALL 0x0?(...)"]      = "2%s"
   opcode["SE V(.), ?0x(..)"]    = "3%s%s"
   opcode["SNE V(.), ?0x(..)"]   = "4%s%s"
@@ -110,7 +110,7 @@ function fetch(self,    pc) {
 }
 
 
-function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,offsety,pre) {
+function execute(self,     opcode, i,n, vx,vy, x,y, bit,byte,word,offsetx,offsety,pre) {
   opcode = self["opcode"]
 
   # NOP (No Operation)
@@ -118,18 +118,18 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
     return 1
   }
 
-  # SCD <nible> (scroll down content of display 0-7 lines)
+  # SCD <nible> (scroll down content of display 0-15 lines)
   if ( 0x00C0 == awk::and(opcode, 0xFFF0) ) {
-    size = awk::and(opcode, 0x000F)
+    n = awk::and(opcode, 0x000F)
 
     w = self["disp"]["width"]
     h = self["disp"]["height"]
 
-    for (y=(h-1); y>=size; y--)
+    for (y=(h-1); y>=n; y--)
       for (x=0; x<w; x++)
-        self["disp"][y*w+x] = self["disp"][(y-size)*w+x]
+        self["disp"][y*w+x] = self["disp"][(y-n)*w+x]
 
-    for (y=(size-1); y>=0; y--)
+    for (y=(n-1); y>=0; y--)
       for (x=0; x<w; x++)
         self["disp"][y*w+x] = 0
 
@@ -157,13 +157,13 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
   if ( 0x00FB == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
-    size = int(self["disp"]["width"] / 32)
+    n = int(self["disp"]["width"] / 32)
 
     for (y=0; y<h; y++) {
       yw = y*w
-      for (x=w; x>=size; x--)
-        self["disp"][yw+x] = self["disp"][yw+x-size]
-      for (x=size; x>=0; x--)
+      for (x=w; x>=n; x--)
+        self["disp"][yw+x] = self["disp"][yw+x-n]
+      for (x=n; x>=0; x--)
         self["disp"][yw+x] = 0
     }
 
@@ -175,13 +175,13 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
   if ( 0x00FC == opcode ) {
     w = self["disp"]["width"]
     h = self["disp"]["height"]
-    size = int(self["disp"]["width"] / 32)
+    n = int(self["disp"]["width"] / 32)
 
     for (y=0; y<h; y++) {
       yw = y*w
-      for (x=0; x<(w-size); x++)
-        self["disp"][yw+x] = self["disp"][yw+x+size]
-      for (x=(w-size); x<w; x++)
+      for (x=0; x<(w-n); x++)
+        self["disp"][yw+x] = self["disp"][yw+x+n]
+      for (x=(w-n); x<w; x++)
         self["disp"][yw+x] = 0
     }
 
@@ -214,7 +214,10 @@ function execute(self,     opcode, i, vx, vy,    x,y,n,byte,word,bit,offsetx,off
 
   # JP addr (Jump to address)
   if ( 0x1000 == awk::and(opcode, 0xF000) ) {
-    if ((self["pc"]-2) == awk::and(opcode, 0x0FFF)) exit 0
+    # exit if we jump to ourself (infinite loop)
+    if ((self["pc"]-2) == awk::and(opcode, 0x0FFF))
+      exit 0
+
     self["pc"] = awk::and(opcode, 0x0FFF)
     return 1
   }
