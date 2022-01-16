@@ -5,6 +5,27 @@
 @include "lib/cpu.gawk"
 
 BEGIN {
+  colors["black"]		= 30
+  colors["red"]			= 31
+  colors["green"]		= 32
+  colors["yellow"]		= 33
+  colors["blue"]		= 34
+  colors["magenta"]		= 35
+  colors["cyan"]		= 36
+  colors["white"]		= 37
+  colors["bright grey"]		= 37
+  colors["bright gray"]		= 37
+  colors["bright black"]	= 90
+  colors["grey"]		= 90
+  colors["gray"]		= 90
+  colors["bright red"]		= 91
+  colors["bright green"]	= 92
+  colors["bright yellow"]	= 93
+  colors["bright blue"]		= 94
+  colors["bright magenta"]	= 95
+  colors["bright cyan"]		= 96
+  colors["bright white"]	= 97
+
   # bytes for characters 0-9 and A-F
   fontstr = "F0 90 90 90 F0 \
              20 60 20 20 70 \
@@ -23,6 +44,20 @@ BEGIN {
              F0 80 F0 80 F0 \
              F0 80 F0 80 80"
   split(fontstr, sysfont)
+
+  prgstr = "00 E0 A2 72 60 00 6B 00 6E 01 00 C1 6A 06 DA B1 \
+            FE 1E 7A 08 3A 3E 12 0E 70 01 30 06 12 0A 61 07 \
+            00 C1 F1 15 F1 07 31 00 12 24 70 01 30 1E 12 1E \
+            61 20 F1 15 F1 07 31 00 12 34 A2 9C 60 00 6B 1F \
+            00 D1 6A 0B DA B1 FE 1E 7A 08 3A 33 12 44 70 01 \
+            30 05 12 40 61 07 00 D1 F1 15 F1 07 31 00 12 5A \
+            70 01 30 12 12 54 61 80 F1 15 F1 07 31 00 12 6A \
+            00 FD CC D9 B0 F3 36 C0 F0 CC F9 B1 9B 36 C1 98 \
+            FD AD A1 83 36 F9 98 CD 8D C1 83 F6 CC F0 CD 8D \
+            A1 9B 36 CD 98 79 8D B0 F3 36 F8 F0 CA 3C 73 CE \
+            DE AA 36 D9 98 D8 C6 3C F9 8C DC A2 30 D9 86 D8 \
+            CC 30 D9 9C DE 00"
+  nsysprg = split(prgstr, sysprg)
 
   # set ord table
   for (i=0; i<256; i++)
@@ -74,6 +109,10 @@ function loadini(self, fname,    a, section, keyval, val_is_quoted) {
         val_is_quoted = 1
       }
 
+      # convert colors to values
+      if ( !val_is_quoted && (keyval[2] in colors) )
+        keyval[2] = colors[keyval[2]]
+
       # convert string numbers to actual numbers
       if ( !val_is_quoted && (keyval[2]+0 == keyval[2]) )
         keyval[2] = awk::strtonum(keyval[2])
@@ -83,7 +122,7 @@ function loadini(self, fname,    a, section, keyval, val_is_quoted) {
         keyval[2] = sprintf("%c", awk::strtonum(keyval[2]))
 
       self["cfg"][section][keyval[1]] = keyval[2]
-      #printf("cfg[%s][%s] = %s\r\n", section, keyval[1], keyval[2])
+      #printf("cfg[%s][%s] = %s\n", section, keyval[1], keyval[2])
     }
   }
   close(fname)
@@ -135,6 +174,10 @@ function init(self) {
   # put system font in memory
   for (i=0; i<0x50; i++)
     self["mem"][i] = awk::strtonum("0x" sysfont[i+1])
+
+  # put system program in memory
+  for (i=0; i<nsysprg; i++)
+    self["mem"][0x0200+i] = awk::strtonum("0x" sysprg[i+1])
 
   # display data
   self["disp"]["width"]   = self["cfg"]["display"]["width"]
@@ -253,15 +296,16 @@ function draw(self, xpos, ypos,    x,y, w,h, up1, up2, dn1, dn2, line, display) 
     w = self["disp"]["width"]
     h = self["disp"]["height"]
 
-    display = "\033[32;40m"
+    #display = "\033[32;40m"
+    display = sprintf("\033[%d;%dm", self["cfg"]["colors"]["foreground"], self["cfg"]["colors"]["background"]+10)
     for (y=0; y<h; y+=2) {
       line = sprintf("\033[%d;%dH", ypos + int(y/2), xpos)
-      for (x=0; x<w; x+=(self["disp"]["hires"]+1)) {
+      for (x=0; x<w; x+=2) {
         up1 = self["disp"][(y+0)*w + (x+0)] + 0
         up2 = self["disp"][(y+0)*w + (x+1)] + 0
         dn1 = self["disp"][(y+1)*w + (x+0)] + 0
         dn2 = self["disp"][(y+1)*w + (x+1)] + 0
-        line = line "" (self["disp"]["hires"] ? hires[up1""up2""dn1""dn2] : lores[up1""dn1])
+        line = line "" (self["disp"]["hires"] ? hires[up1""up2""dn1""dn2] : lores[up1""dn1] lores[up2""dn2])
       }
       display = display "" line
     }
@@ -338,8 +382,11 @@ function keyboard(self,    key, cmd, val) {
     }
   }
 
-  if (key == self["cfg"]["emulator"]["debug"])
+  if (key == self["cfg"]["emulator"]["debug"]) {
     self["cfg"]["main"]["debug"] = !self["cfg"]["main"]["debug"]
+    self["disp"]["refresh"] = 1
+    printf("\033[?2J")
+  }
 
   if ((key == self["cfg"]["emulator"]["step"]) && (self["cpu"]["cpuhz"] == 0)) {
     self["cpu"]["run"] = 1

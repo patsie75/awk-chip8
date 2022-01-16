@@ -3,6 +3,7 @@
 BEGIN {
   mnem["0000"]			= "NOP"
   mnem["00C(.)"]		= "SCD 0x%s"
+  mnem["00D(.)"]		= "SCU 0x%s"
   mnem["00E0"]			= "CLS"
   mnem["00EE"]			= "RET"
 #  mnem["0([^0][^0E][^0])"]	= "SYS  0x%s"
@@ -46,6 +47,7 @@ BEGIN {
 
   opcode["NOO?P"]               = "0000"
   opcode["SCD 0x(.)"]           = "00C%s"
+  opcode["SCU 0x(.)"]           = "00D%s"
   opcode["CLS"]                 = "00E0"
   opcode["RET"]                 = "00EE"
   opcode["SCR"]                 = "00FB"
@@ -130,6 +132,25 @@ function execute(self,     opcode, i,n, vx,vy, x,y, bit,byte,word,offsetx,offset
         self["disp"][y*w+x] = self["disp"][(y-n)*w+x]
 
     for (y=(n-1); y>=0; y--)
+      for (x=0; x<w; x++)
+        self["disp"][y*w+x] = 0
+
+    self["disp"]["refresh"] = 1
+    return 1
+  }
+
+  # SCU <nible> (scroll up content of display 0-15 lines)
+  if ( 0x00D0 == awk::and(opcode, 0xFFF0) ) {
+    n = awk::and(opcode, 0x000F)
+
+    w = self["disp"]["width"]
+    h = self["disp"]["height"]
+
+    for (y=0; y<(h-n); y++)
+      for (x=0; x<w; x++)
+        self["disp"][y*w+x] = self["disp"][(y+n)*w+x]
+
+    for (y=(h-n); y<h; y++)
       for (x=0; x<w; x++)
         self["disp"][y*w+x] = 0
 

@@ -31,6 +31,6 @@ BEGIN {
 END {
   # show cursor, put at sane location and print some final statistics
   printf("\033[%d;1H\033[?25h", chip["disp"]["height"]/2+1)
-  printf("cycles: %d (%.2fHz)\r\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - chip["start"]) )
-  printf("frames: %d (%.2ffps)\r\n", chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - chip["start"]) )
+  printf("cycles: %d (%.2fHz)\n", chip["cpu"]["cycles"], chip["cpu"]["cycles"] / (gettimeofday() - chip["start"]) )
+  printf("frames: %d (%.2ffps)\n", chip["disp"]["frames"], chip["disp"]["frames"] / (gettimeofday() - chip["start"]) )
 }

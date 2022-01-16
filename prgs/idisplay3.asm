@@ -2,7 +2,7 @@ HIGH            ; set high resolution
 :init
 LD V0,0x00      ; image counter
 LD VE,0x03      ; number of images
-LD V3,0x10      ; height of sprite
+;LD V3,0x10      ; height of sprite
 LD VC,0x20      ; bytes of sprite
 
 LD I,:img1      ; first image position
@@ -18,7 +18,7 @@ ADD I,VC        ; move data pointer
 ADD V1,0x10     ; xpos += 16
 SE  V1,0x80     ; columns finished?
 JP  :draw2
-ADD V2,V3       ; ypos += 16
+ADD V2,0x10     ; ypos += 16
 SE  V2,0x40     ; rows finished?
 JP  :draw1
                 ; show picture and wait
@@ -40,11 +40,11 @@ RET
 
 :fadeout
 RND V6,0x03     ; get random value (0-3)
-SNE V6,0x00     ; 0?
+SNE V6,0x00     ; if 0
 CALL :scrolldwn ; scroll down
-SNE V6,0x01     ; 1?
+SNE V6,0x01     ; if 1
 CALL :scrollrgt ; scroll right
-SNE V6,0x02     ; 2?
+SNE V6,0x02     ; if 2
 CALL :scrolllft ; scroll left
 RET
 
@@ -76,7 +76,7 @@ RET
 LD  V7,0x00     ; row counter
 :loopleft
 SCL             ; scroll left 4 pixels
-LD  V4,0x02     ; set snall delay
+LD  V4,0x02     ; set small delay
 LD  DT,V4       ; set delay timer
 CALL :delay     ; wait
 ADD V7,0x01     ; increase row counter
