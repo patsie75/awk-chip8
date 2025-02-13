@@ -112,7 +112,7 @@ function fetch(self,    pc) {
 }
 
 
-function execute(self,     opcode, i,n, vx,vy, x,y, bit,byte,word,offsetx,offsety,pre) {
+function execute(self,     opcode, i,n, vx,vy, x,y, bit,byte,word,offsetx,offsety,pre,overflow) {
   opcode = self["opcode"]
 
   # NOP (No Operation)
@@ -326,48 +326,58 @@ function execute(self,     opcode, i,n, vx,vy, x,y, bit,byte,word,offsetx,offset
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
     i = self["V"][vx] + self["V"][vy]
-    self["V"][0xF] = (i > 0xFF) ? 1 : 0
     self["V"][vx] = awk::and(i, 0xFF)
+    self["V"][0xF] = (i > 0xFF) ? 1 : 0
     return 1
   }
 
-  # SUB Vx, Vy (Vx -= Vy)
+  # SUB Vx, Vy (Vx = Vx - Vy)
   if ( 0x8005 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
+    overflow = 1
+
     i = self["V"][vx] - self["V"][vy]
-    self["V"][0xF] = (i > 0) ? 1 : 0
-    if (i < 0) i = 256 + (i%256)
+    if (i < 0) {
+      i = 256 + (i%256)
+      overflow = 0
+    }
     self["V"][vx] = awk::and(i, 0xFF)
+    self["V"][0xF] = overflow
     return 1
   }
 
   # SHR Vx, 1 (Vx >> 1)
   if ( 0x8006 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
-    self["V"][0xF] = self["V"][vx] % 2
+    overflow = self["V"][vx] % 2
     self["V"][vx] = awk::and(awk::rshift(self["V"][vx], 1), 0xFF)
+    self["V"][0xF] = overflow
     return 1
   }
 
-  # SUBN Vx, Vy (Vx -= Vy)
+  # SUBN Vx, Vy (Vy = Vy - Vx)
   if ( 0x8007 == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
     vy = awk::rshift(awk::and(opcode, 0x00F0), 4)
+    overflow = 1
 
     i = self["V"][vy] - self["V"][vx]
-    if (self["V"][vy] >= self["V"][vx]) {
-      self["V"][0xF] = 1
-      i += 256
+    if (i < 0) {
+      i = 256 + (i%256)
+      overflow = 0
     }
+    self["V"][vx] = awk::and(i, 0xFF)
+    self["V"][0xF] = overflow
     return 1
   }
 
   # SHL Vx, 1 (Vx << 1)
   if ( 0x800E == awk::and(opcode, 0xF00F) ) {
     vx = awk::rshift(awk::and(opcode, 0x0F00), 8)
-    self["V"][0xF] = awk::rshift(self["V"][vx], 7)
+    overflow = awk::rshift(self["V"][vx], 7)
     self["V"][vx] = awk::and(awk::lshift(self["V"][vx], 1), 0xFF)
+    self["V"][0xF] = overflow
     return 1
   }
 
